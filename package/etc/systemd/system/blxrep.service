@@ -1,0 +1,12 @@
+[Unit]
+Description=blxrep service
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/blxrep start --config /etc/blxrep/config.yaml
+Restart=always
+User=root
+Group=root
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,31 @@
+name: "production-backup-policy"
+description: "Backup policy for production servers"
+archive_interval: 24
+snapshot_frequency: 4
+snapshot_time: "00:00"
+bandwidth_limit: 50
+snapshot_retention: 7
+live_sync_frequency: 1
+transition_after_days: 30
+delete_after_days: 90
+
+targets:
+  # Range pattern
+  - pattern: "web[1-5].prod.example.com"
+    disks_excluded: 
+      - "/dev/sdb"
+  
+  # List pattern
+  - pattern: "db[master,slave1,slave2].prod.example.com"
+    disks_excluded: 
+      - "/dev/sdc"
+  
+  # Mixed pattern
+  - pattern: "cache[1-3,backup].prod.example.com"
+    disks_excluded: 
+      - "/dev/sdd"
+  
+  # Regular wildcard pattern
+  - pattern: "monitor-*.prod.example.com"
+    disks_excluded: 
+      - "/dev/sde"

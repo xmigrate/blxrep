@@ -1,0 +1,16 @@
+name: "lab-backup-policy"
+description: "Backup policy for lab servers"
+archive_interval: 48h
+snapshot_frequency: "daily"
+snapshot_time: "12:00"
+bandwidth_limit: 100
+snapshot_retention: 30
+live_sync_frequency: 2
+transition_after_days: 30
+delete_after_days: 90
+
+targets:
+  # Range pattern
+  - pattern: "ip-172-[31-32]-46-49"
+    disks_excluded: 
+      - "/dev/xvda"

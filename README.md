@@ -1,3 +1,16 @@
+<p align="center">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 70" width="400">
+  <g transform="translate(20,20)">
+    <rect x="0" y="0" width="25" height="25" fill="#8B5CF6" rx="3"/>
+    <rect x="30" y="0" width="25" height="25" fill="#8B5CF6" rx="3" opacity="0.6"/>
+    <rect x="60" y="0" width="25" height="25" fill="#8B5CF6" rx="3"/>
+  </g>
+  <text x="110" y="42" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#4C1D95">
+    blxrep
+  </text>
+</svg>
+</p>
+
 # blxrep
 
 blxrep is a powerful tool designed for live data replication of disks over a network. It operates in two modes: dispatcher and agent, allowing for efficient and flexible disaster recovery setup.

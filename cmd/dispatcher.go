@@ -7,10 +7,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var dispatcherCmd = &cobra.Command{
-	Use:   "dispatcher",
-	Short: "Dispatcher commands",
-	Long:  `Dispatcher commands for managing the dispatcher service and checkpoints.`,
+var tuiCmd = &cobra.Command{
+	Use:   "tui",
+	Short: "TUI commands",
+	Long:  `TUI commands for interacting with the dispatcher and agents.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		dataDir, _ := cmd.Flags().GetString("data-dir")
 		tui.RunDispatcherTUI(dataDir)
@@ -42,10 +42,10 @@ var restoreCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(dispatcherCmd)
+	rootCmd.AddCommand(tuiCmd)
+	tuiCmd.Flags().String("data-dir", "", "Data directory")
 
-	dispatcherCmd.AddCommand(showCmd)
-	dispatcherCmd.Flags().String("data-dir", "", "Data directory")
+	rootCmd.AddCommand(showCmd)
 	showCmd.Flags().String("start", "", "Start timestamp format: YYYYMMDDHHMM")
 	showCmd.Flags().String("end", "", "End timestamp format: YYYYMMDDHHMM")
 	showCmd.Flags().String("agent", "", "Agent name")
@@ -53,7 +53,7 @@ func init() {
 	showCmd.Flags().String("data-dir", "", "Data directory")
 	showCmd.MarkFlagRequired("agent")
 	showCmd.MarkFlagRequired("data-dir")
-	dispatcherCmd.AddCommand(restoreCmd)
+	rootCmd.AddCommand(restoreCmd)
 	restoreCmd.Flags().String("checkpoint", "", "Checkpoint timestamp")
 	restoreCmd.Flags().String("agent", "", "Agent name")
 	restoreCmd.Flags().String("data-dir", "", "Data directory")

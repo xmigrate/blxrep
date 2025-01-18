@@ -81,4 +81,12 @@ In dispatcher mode, blxrep manages the overall replication process. It acts as a
 
 In agent mode, blxrep runs on individual servers to send snapshot backups and live changes to the dispatcher. It requires an agent ID, dispatcher address, and device to be specified. We need the agent ID to be unique if we are connecting multiple servers to the same dispatcher. Device is the disk that needs to be backed up and monitored for live changes.
 
+### TUI mode
 
+blxrep uses tcell for the TUI. It is a terminal UI library for Go that is easy to use and highly customizable. It is used to interact with the dispatcher and agents.
+
+To start the TUI, use the `tui` command:
+
+```bash
+blxrep tui --data-dir=<data_directory>
+```

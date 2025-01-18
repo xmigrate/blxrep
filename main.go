@@ -34,7 +34,7 @@ func main() {
 
 	// Modify the dispatcher command to use the TUI
 	for _, subCmd := range rootCmd.Commands() {
-		if subCmd.Use == "dispatcher" {
+		if subCmd.Use == "tui" {
 			originalRun := subCmd.Run
 			subCmd.Run = func(cmd *cobra.Command, args []string) {
 				dataDir, _ := cmd.Flags().GetString("data-dir")

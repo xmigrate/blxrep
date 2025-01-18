@@ -1,0 +1,79 @@
+name: Build and Release Packages
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      version:
+        description: 'Version to use for packages'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.23'
+
+      # Set version based on release tag or manual input
+      - name: Set Version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+          else
+            VERSION=${{ github.event.inputs.version }}
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Using version: $VERSION"
+
+      - name: Build Go Application
+        run: |
+          GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o blxrep main.go
+          cp blxrep package/usr/local/bin/
+
+      - name: Package with FPM for deb
+        uses: bpicode/github-action-fpm@master
+        with:
+          fpm_args: |
+            -s dir
+            -t deb
+            -n blxrep
+            -v ${{ env.VERSION }}
+            --prefix /
+            --config-files /etc/blxrep/config.yaml
+            --post-install postinstall.sh
+            -C package .
+      
+      - name: Package with FPM for rpm
+        uses: bpicode/github-action-fpm@master
+        with:
+          fpm_args: |
+            -s dir
+            -t rpm
+            -n blxrep
+            -v ${{ env.VERSION }}
+            --prefix /
+            --config-files /etc/blxrep/config.yaml
+            --post-install postinstall.sh
+            -C package .
+
+      # Upload to GitHub Release
+      - name: Upload Release Assets
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            blxrep-${{ env.VERSION }}-amd64.deb
+            blxrep-${{ env.VERSION }}-x86_64.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

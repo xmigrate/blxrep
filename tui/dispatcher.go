@@ -68,7 +68,7 @@ func RunDispatcherTUI(dataDir string) {
 func (t *DispatcherTUI) setup() {
 	dataDir := fmt.Sprintf("Data Dir: %s", t.dataDir)
 	banner := utils.GetDiskBanner()
-	infoText := fmt.Sprintf("%s \n %s", banner, dataDir) // Adjust 50 as needed
+	infoText := fmt.Sprintf("%s \n %s", banner, dataDir)
 
 	t.infoBarLeft = tview.NewTextView().
 		SetTextColor(tcell.ColorPurple).
@@ -85,7 +85,7 @@ func (t *DispatcherTUI) setup() {
 		SetTextAlign(tview.AlignLeft)
 	t.infoBarRight.SetBorder(false)
 	infoBarFlex := tview.NewFlex().
-		AddItem(t.infoBarLeft, 0, 4, false).
+		AddItem(t.infoBarLeft, 0, 2, false).
 		AddItem(t.infoBarRight, 0, 1, false)
 
 	t.content = tview.NewFlex().SetDirection(tview.FlexColumn)
@@ -94,10 +94,13 @@ func (t *DispatcherTUI) setup() {
 		SetLabel(" Command: ").
 		SetFieldWidth(0).
 		SetDoneFunc(t.handleCommand).SetFieldBackgroundColor(tcell.ColorBlack).SetLabelColor(tcell.ColorWhite)
+	// Calculate height based on banner lines plus data dir line
+	bannerLines := len(strings.Split(banner, "\n"))
+	totalHeight := bannerLines + 2 // +2 for data dir line and padding
 
 	t.mainFlex = tview.NewFlex().
 		SetDirection(tview.FlexRow).
-		AddItem(infoBarFlex, 8, 1, false).
+		AddItem(infoBarFlex, totalHeight, 1, false). // Dynamic height based on content
 		AddItem(t.content, 0, 1, true)
 
 	t.app.SetRoot(t.mainFlex, true)
@@ -116,7 +119,7 @@ func (t *DispatcherTUI) updateInfoBar(shortcuts []string) {
 	t.infoBarLeft.SetText(leftText)
 
 	// Update right column
-	rightText := strings.Join(shortcuts, "\n")
+	rightText := "\n\n\n" + strings.Join(shortcuts, "\n")
 	t.infoBarRight.SetText(rightText)
 }
 

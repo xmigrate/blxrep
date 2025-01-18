@@ -67,6 +67,12 @@ jobs:
             --post-install postinstall.sh
             -C package .
 
+      # Rename packages to ensure consistent naming
+      - name: Rename packages
+        run: |
+          mv blxrep_${{ env.VERSION }}_amd64.deb blxrep-${{ env.VERSION }}-amd64.deb
+          mv blxrep-${{ env.VERSION }}-1.x86_64.rpm blxrep-${{ env.VERSION }}-x86_64.rpm
+        
       # Upload to GitHub Release
       - name: Upload Release Assets
         if: github.event_name == 'release'

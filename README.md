@@ -68,12 +68,51 @@ wget https://github.com/xmigrate/blxrep/releases/download/v0.0.2/blxrep-0.0.2-x8
 sudo rpm -i blxrep-0.0.2-x86_64.rpm
 ```
 
-##Verify the installation:
+## Verify the installation:
 ```bash
-blxrep --help
+sudo blxrep --help
 ```
 
 Configuration file is located at `/etc/blxrep/config.yaml` by default.
+Policy directory is located at `/etc/blxrep/policies` by default.
+
+## Policy Configuration
+
+Default Policy configuration is located at `/etc/blxrep/policies/default.yaml` by default.
+```yaml
+name: "default-backup-policy" # name of the policy
+description: "Backup policy for all servers" # description of the policy
+archive_interval: 48h # archive interval
+snapshot_frequency: "daily" # snapshot frequency
+snapshot_time: "12:00" # snapshot time
+bandwidth_limit: 100 # bandwidth limit
+snapshot_retention: 30 # snapshot retention
+live_sync_frequency: 2m # live sync frequency
+transition_after_days: 30 # transition after days
+delete_after_days: 90 # delete after days
+
+targets:
+  # Range pattern
+  - pattern: "*" # pattern of the targets which is mentioned on agent /etc/blxrep/config.yaml
+    disks_excluded: 
+      - "/dev/xvda" # disks excluded from the policy
+```
+You can create your own policy by creating a new yaml file in the `/etc/blxrep/policies` directory.
+
+## Post Installation
+After installation, enable and start the blxrep service:
+
+```bash
+sudo systemctl enable blxrep
+sudo systemctl start blxrep
+```
+
+After starting the blxrep service, you can see the status of the blxrep service with the following command:
+
+```bash
+sudo systemctl status blxrep
+```
+
 
 ## Uninstallation
 

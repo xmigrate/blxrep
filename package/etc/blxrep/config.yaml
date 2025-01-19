@@ -8,6 +8,7 @@
 # mode: "dispatcher"
 # data-dir: "/data"
 # sync-freq: 3
+# policy-dir: "/etc/blxrep/policies"
 
 # Add user configuration for registration
 # name: name of the user

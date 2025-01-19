@@ -27,6 +27,7 @@ const (
 	CONST_ACTION_STATUS_RESUMED          CONST_ACTION_STATUS_TYPE = "resumed"
 	CONST_BLOCK_SIZE                     uint64                   = 512
 	CONST_CHANNEL_SIZE                   uint64                   = 12000
+	CONST_MAX_ACTIONS_TO_PROCESS         uint32                   = 1000
 	Daily                                Frequency                = "daily"
 	Weekly                               Frequency                = "weekly"
 	Monthly                              Frequency                = "monthly"

@@ -12,20 +12,13 @@ import (
 	"github.com/xmigrate/blxrep/utils"
 )
 
-const (
-	ACTION_STATUS_STARTED         = "Started"
-	ACTION_STATUS_COMPLETED       = "Completed"
-	ACTION_STATUS_FAILED          = "Failed"
-	ACTION_TYPE_RESTORE           = "Restore"
-	ACTION_TYPE_PARTITION_RESTORE = "PartitionRestore"
-	MAX_ACTIONS_TO_PROCESS        = 1000
-)
+const ()
 
 var restorePartitionMutex sync.Mutex
 var isPartitionRestore bool
 
 func StaledActions() error {
-	actions, err := service.GetAllActionsWithStatus(MAX_ACTIONS_TO_PROCESS, utils.CONST_ACTION_STATUS_IN_PROGRESS)
+	actions, err := service.GetAllActionsWithStatus(int(utils.CONST_MAX_ACTIONS_TO_PROCESS), utils.CONST_ACTION_STATUS_IN_PROGRESS)
 	if err != nil {
 		return fmt.Errorf("error fetching in progress actions: %v", err)
 	}
@@ -86,16 +79,16 @@ func StaledActionsJob() error {
 
 func CheckActions(agentID string) error {
 	// Get pending actions
-	actions, err := service.GetAllActionsWithStatus(MAX_ACTIONS_TO_PROCESS, utils.CONST_ACTION_STATUS_WAITING)
+	actions, err := service.GetAllActionsWithStatus(int(utils.CONST_MAX_ACTIONS_TO_PROCESS), utils.CONST_ACTION_STATUS_WAITING)
 	if err != nil {
 		return fmt.Errorf("error fetching pending actions: %v", err)
 	}
 	utils.LogDebug(fmt.Sprintf("Found %d pending actions for agent %s", len(actions), agentID))
 	for _, action := range actions {
 		// Check if the action is for this agent and is a restore action
-		if action.AgentId == agentID && action.ActionType == ACTION_TYPE_RESTORE {
+		if action.AgentId == agentID && action.ActionType == string(utils.CONST_AGENT_ACTION_RESTORE) {
 			// Update the action status to started
-			action.ActionStatus = ACTION_STATUS_STARTED
+			action.ActionStatus = string(utils.CONST_START_ACTION)
 			action.TimeStarted = time.Now().Unix()
 			action.ActionProgress = 1
 
@@ -108,13 +101,13 @@ func CheckActions(agentID string) error {
 			utils.LogDebug(fmt.Sprintf("Starting restore action %s for agent %s", action.Id, agentID))
 
 			// Perform the restore operation
-			if action.Action == ACTION_TYPE_RESTORE {
+			if action.Action == string(utils.CONST_AGENT_ACTION_RESTORE) {
 				err := RestoreFiles(agentID, action.SourceFilePath, action.TargetFilePath, action)
 				if err != nil {
 					utils.LogError(fmt.Sprintf("Error during restore for action %s: %v", action.Id, err))
 
 					// Update action status to failed
-					action.ActionStatus = ACTION_STATUS_FAILED
+					action.ActionStatus = string(utils.CONST_ACTION_STATUS_FAILED)
 					action.TimeFinished = time.Now().Unix()
 					err = service.InsertOrUpdateAction(action)
 					if err != nil {
@@ -124,7 +117,7 @@ func CheckActions(agentID string) error {
 				}
 
 				// Update action status to completed
-				action.ActionStatus = ACTION_STATUS_COMPLETED
+				action.ActionStatus = string(utils.CONST_ACTION_STATUS_COMPLETED)
 				action.TimeFinished = time.Now().Unix()
 				action.ActionProgress = 100
 				err = service.InsertOrUpdateAction(action)
@@ -134,7 +127,7 @@ func CheckActions(agentID string) error {
 
 				// Log the action completion
 				utils.LogDebug(fmt.Sprintf("Completed restore files action %s for agent %s", action.Id, agentID))
-			} else if action.Action == ACTION_TYPE_PARTITION_RESTORE {
+			} else if action.Action == string(utils.CONST_AGENT_ACTION_PARTITION_RESTORE) {
 				utils.LogDebug(fmt.Sprintf("Starting restore partition action %s for agent %s", action.Id, agentID))
 				restorePartitionMutex.Lock()
 				var ctx context.Context
@@ -144,12 +137,12 @@ func CheckActions(agentID string) error {
 					utils.LogError(fmt.Sprintf("Error during restore for action %s: %v", action.Id, err))
 
 					// Update action status to failed
-					action.ActionStatus = ACTION_STATUS_FAILED
+					action.ActionStatus = string(utils.CONST_ACTION_STATUS_FAILED)
 					action.TimeFinished = time.Now().Unix()
 					err = service.InsertOrUpdateAction(action)
 				}
 				restorePartitionMutex.Unlock()
-				action.ActionStatus = ACTION_STATUS_COMPLETED
+				action.ActionStatus = string(utils.CONST_ACTION_STATUS_COMPLETED)
 				action.TimeFinished = time.Now().Unix()
 				err = service.InsertOrUpdateAction(action)
 				if err != nil {

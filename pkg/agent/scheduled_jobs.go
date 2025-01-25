@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,15 +38,15 @@ func (s *Scheduler) Start(job func()) error {
 
 		for {
 			nextRun := s.calculateNextRun()
-			utils.LogDebug(fmt.Sprintf("Next snapshot scheduled for: %v", nextRun))
+			log.Printf("Next snapshot scheduled for: %v", nextRun)
 
 			select {
 			case <-time.After(time.Until(nextRun)):
-				utils.LogDebug("Starting snapshot job")
+				log.Println("Starting snapshot job")
 				job()
 
 			case <-s.stopChan:
-				utils.LogDebug("Scheduler stopped")
+				log.Println("Scheduler stopped")
 				return
 			}
 		}
@@ -114,17 +115,17 @@ func StartScheduledJobs(agentID string, snapshotURL string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create scheduler: %v", err)
 	}
-	utils.LogDebug(fmt.Sprintf("Scheduled job started to run at %s every %s", utils.AgentConfiguration.SnapshotTime, utils.AgentConfiguration.SnapshotFreq))
+	log.Printf("Scheduled job started to run at %s every %s", utils.AgentConfiguration.SnapshotTime, utils.AgentConfiguration.SnapshotFreq)
 	// Start as a goroutine
 	go func() {
 		if err := scheduler.Start(func() {
-			utils.LogDebug(fmt.Sprintf("Scheduled job %s: agent %s connecting to snapshot endpoint at %s", time.Now().Format(time.RFC3339), agentID, snapshotURL))
+			log.Printf("Scheduled job %s: agent %s connecting to snapshot endpoint at %s", time.Now().Format(time.RFC3339), agentID, snapshotURL)
 			if err := connectAndHandle(agentID, snapshotURL); err != nil {
-				utils.LogError(fmt.Sprintf("Snapshot connection error: %v", err))
+				log.Printf("Snapshot connection error: %v", err)
 			}
-			utils.LogDebug("Snapshot job is running")
+			log.Printf("Snapshot job is running")
 		}); err != nil {
-			utils.LogError(fmt.Sprintf("Scheduler error: %v", err))
+			log.Printf("Scheduler error: %v", err)
 		}
 	}()
 

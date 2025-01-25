@@ -5,6 +5,7 @@ package agent
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -166,7 +167,7 @@ func getPhysicalDrives() ([]PhysicalDrive, error) {
 	var drives []PhysicalDrive
 	lines := strings.Split(string(output), "\n")
 	for i, line := range lines {
-		utils.LogDebug(fmt.Sprintf("line physical drive %s", line))
+		log.Printf("line physical drive %s", line)
 		if i == 0 || strings.TrimSpace(line) == "" { // Skip the header and empty lines
 			continue
 		}
@@ -179,22 +180,22 @@ func getPhysicalDrives() ([]PhysicalDrive, error) {
 		deviceID := fields[1]
 		bytesPerSector, err := strconv.ParseUint(fields[0], 10, 64)
 		if err != nil {
-			utils.LogError(fmt.Sprintf("Error parsing BytesPerSector for %s: %v", deviceID, err))
+			log.Printf("Error parsing BytesPerSector for %s: %v", deviceID, err)
 			continue
 		}
 		partitions, err := strconv.Atoi(fields[3])
 		if err != nil {
-			utils.LogError(fmt.Sprintf("Error parsing Partitions for %s: %v", deviceID, err))
+			log.Printf("Error parsing Partitions for %s: %v", deviceID, err)
 			continue
 		}
 		totalSectors, err := strconv.ParseUint(fields[4], 10, 64)
 		if err != nil {
-			utils.LogError(fmt.Sprintf("Error parsing TotalSectors for %s: %v", deviceID, err))
+			log.Printf("Error parsing TotalSectors for %s: %v", deviceID, err)
 			continue
 		}
 		index, err := strconv.Atoi(fields[2])
 		if err != nil {
-			utils.LogError(fmt.Sprintf("Error parsing Index for %s: %v", deviceID, err))
+			log.Printf("Error parsing Index for %s: %v", deviceID, err)
 			continue
 		}
 
@@ -225,7 +226,7 @@ func getPartitions() ([]Partition, error) {
 	var partitions []Partition
 	lines := strings.Split(string(output), "\n")
 	for i, line := range lines {
-		utils.LogDebug(fmt.Sprintf("line partitions %s", line))
+		log.Printf("line partitions %s", line)
 		if i == 0 || strings.TrimSpace(line) == "" { // Skip the header and empty lines
 			continue
 		}
@@ -238,7 +239,7 @@ func getPartitions() ([]Partition, error) {
 		deviceID := fields[0]
 		diskIndex, err := strconv.Atoi(fields[1])
 		if err != nil {
-			utils.LogError(fmt.Sprintf("Error parsing DiskIndex for %s: %v", deviceID, err))
+			log.Printf("Error parsing DiskIndex for %s: %v", deviceID, err)
 			continue
 		}
 
@@ -261,14 +262,14 @@ func getCDriveDiskIndex() (int, error) {
 	lines := strings.Split(string(output), "\n")
 	re := regexp.MustCompile(`Win32_DiskPartition\.DeviceID="([^"]+)"`)
 	for i, line := range lines {
-		utils.LogDebug(fmt.Sprintf("line c drive disk index: %s", line))
+		log.Printf("line c drive disk index: %s", line)
 		if i == 0 || strings.TrimSpace(line) == "" { // Skip the header and empty lines
 			continue
 		}
 
 		parts := strings.Fields(line)
 		if len(parts) < 2 {
-			utils.LogError(fmt.Sprintf("Unexpected output from wmic: %s length: %d", line, len(parts)))
+			log.Printf("Unexpected output from wmic: %s length: %d", line, len(parts))
 			continue
 		}
 
@@ -292,24 +293,24 @@ func getCDriveDiskIndex() (int, error) {
 func getDiskIndexFromPartition(partitionID string) (int, error) {
 	// Construct the command string
 	command := fmt.Sprintf("wmic partition where (DeviceID='%s') get DiskIndex", partitionID)
-	utils.LogDebug(fmt.Sprintf("Executing command: %s", command))
+	log.Printf("Executing command: %s", command)
 
 	// Execute the command
 	cmd := exec.Command("cmd", "/C", command)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		utils.LogError(fmt.Sprintf("Error getting DiskIndex for partition %s", partitionID))
-		utils.LogDebug(fmt.Sprintf("Command output: %s", string(output)))
-		utils.LogError(fmt.Sprintf("Error message: %s", err.Error()))
+		log.Printf("Error getting DiskIndex for partition %s", partitionID)
+		log.Printf("Command output: %s", string(output))
+		log.Printf("Error message: %s", err.Error())
 		return -1, err
 	}
 
 	// Log the output for debugging
-	utils.LogDebug(fmt.Sprintf("Command output: %s", string(output)))
+	log.Printf("Command output: %s", string(output))
 
 	lines := strings.Split(string(output), "\n")
 	for i, line := range lines {
-		utils.LogDebug(fmt.Sprintf("line disk index from partition: %s", line))
+		log.Printf("line disk index from partition: %s", line)
 		if i == 0 || strings.TrimSpace(line) == "" { // Skip the header and empty lines
 			continue
 		}

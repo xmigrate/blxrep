@@ -20,7 +20,7 @@ func Clone(ctx context.Context, blockSize int, srcPath string, channelSize int, 
 	// Open the source disk.
 	src, err := os.Open(srcPath)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("Failed to open source disk: %v", err))
+		log.Printf("Failed to open source disk: %v", err)
 	}
 	defer src.Close()
 
@@ -33,13 +33,13 @@ func Clone(ctx context.Context, blockSize int, srcPath string, channelSize int, 
 	var blocks []utils.AgentDataBlock
 	var blockCount uint64
 	var batchSize int
-	utils.LogDebug(fmt.Sprintf("Cloning started for %s", srcPath))
+	log.Printf("Cloning started for %s", srcPath)
 	startTime := time.Now().Unix()
 	for {
 		select {
 		case <-ctx.Done():
 			// Handle context cancellation and exit the goroutine
-			utils.LogDebug("Cloning was paused/cancelled and goroutine is exiting.")
+			log.Println("Cloning was paused/cancelled and goroutine is exiting.")
 			if len(blocks) > 0 {
 				utils.StreamData(blocks, websock, false, srcPath, utils.CONST_AGENT_ACTION_CLONE, startTime)
 			}
@@ -88,11 +88,11 @@ func Clone(ctx context.Context, blockSize int, srcPath string, channelSize int, 
 }
 
 func Resume(ctx context.Context, blockSize int, srcPath string, channelSize int, readFrom int64, websock *websocket.Conn, cloneMutex *sync.Mutex, isCloning *bool) {
-	utils.LogDebug(fmt.Sprintf("Resume started block: %d", readFrom))
+	log.Printf("Resume started block: %d", readFrom)
 	// Open the source disk.
 	src, err := os.Open(srcPath)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("Failed to open source disk: %v", err))
+		log.Printf("Failed to open source disk: %v", err)
 	}
 	defer src.Close()
 	var blocks []utils.AgentDataBlock
@@ -109,7 +109,7 @@ func Resume(ctx context.Context, blockSize int, srcPath string, channelSize int,
 		}
 
 		if blockCount == readFrom {
-			utils.LogDebug(fmt.Sprintf("Seeked to %d", blockCount))
+			log.Printf("Seeked to %d", blockCount)
 			break
 		}
 		blockCount++
@@ -120,7 +120,7 @@ func Resume(ctx context.Context, blockSize int, srcPath string, channelSize int,
 		select {
 		case <-ctx.Done():
 			// Handle context cancellation and exit the goroutine
-			utils.LogDebug("Cloning was paused/cancelled and goroutine is exiting.")
+			log.Println("Cloning was paused/cancelled and goroutine is exiting.")
 			if len(blocks) > 0 {
 				utils.StreamData(blocks, websock, true, srcPath, utils.CONST_AGENT_ACTION_CLONE, startTime)
 				utils.LogDebug(fmt.Sprintf("Flush remaining data of size %d", batchSize))
@@ -154,10 +154,10 @@ func Resume(ctx context.Context, blockSize int, srcPath string, channelSize int,
 					blocks = nil
 				}
 			} else {
-				utils.LogDebug(fmt.Sprintf("No more data to read from the source %d", blockCount))
+				log.Printf("No more data to read from the source %d", blockCount)
 				if len(blocks) > 0 {
 					utils.StreamData(blocks, websock, true, srcPath, utils.CONST_AGENT_ACTION_CLONE, startTime)
-					utils.LogDebug(fmt.Sprintf("Flush remaining data of size %d", batchSize))
+					log.Printf("Flush remaining data of size %d", batchSize)
 				}
 				cloneMutex.Lock()
 				*isCloning = false

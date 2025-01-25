@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -43,46 +44,46 @@ func setTargetDiskMajorMinor(objs *utils.BpfObjects, major uint32, minor uint32)
 }
 
 func GetBlocks(ctx context.Context, blockSize int, srcPath string, websock *websocket.Conn, agentId string) {
-	utils.LogDebug(fmt.Sprintf("Block size: %d", blockSize))
+	log.Printf("Block size: %d", blockSize)
 	// Subscribe to signals for terminating the program.
 	stopper := make(chan os.Signal, 1)
 	signal.Notify(stopper, os.Interrupt, syscall.SIGTERM)
 
 	// Allow the current process to lock memory for eBPF resources.
 	if err := rlimit.RemoveMemlock(); err != nil {
-		utils.LogError(fmt.Sprintf("Error removing memlock: %v", err))
+		log.Printf("Error removing memlock: %v", err)
 	}
 
 	fileInfo, err := os.Stat(srcPath)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("Error retrieving information for /dev/xvda: %v", err))
+		log.Printf("Error retrieving information for /dev/xvda: %v", err)
 	}
 
 	// Asserting type to sys stat to get Sys() method
 	sysInfo, ok := fileInfo.Sys().(*syscall.Stat_t)
 	if !ok {
-		utils.LogError("Error asserting type to syscall.Stat_t")
+		log.Println("Error asserting type to syscall.Stat_t")
 	}
 
 	// Extracting major and minor numbers
 	desiredMajor := uint32(sysInfo.Rdev / 256)
 	desiredMinor := uint32(sysInfo.Rdev % 256)
-	utils.LogDebug(fmt.Sprintf("Major/minor: %d %d", desiredMajor, desiredMinor))
+	log.Printf("Major/minor: %d %d", desiredMajor, desiredMinor)
 
 	// Load pre-compiled programs and maps into the kernel.
 	objs := utils.BpfObjects{}
 	if err := utils.LoadBpfObjects(&objs, nil); err != nil {
-		utils.LogError(fmt.Sprintf("loading objects: %v", err))
+		log.Printf("loading objects: %v", err)
 	}
 	defer objs.Close()
 
 	if err := setTargetDiskMajorMinor(&objs, desiredMajor, desiredMinor); err != nil {
-		utils.LogError(fmt.Sprintf("setting major/minor: %v", err))
+		log.Printf("setting major/minor: %v", err)
 	}
 	// create a Tracepoint link
 	tp, err := link.Tracepoint("block", "block_rq_complete", objs.BlockRqComplete, nil)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("opening tracepoint: %s", err))
+		log.Printf("opening tracepoint: %s", err)
 	}
 	defer tp.Close()
 
@@ -90,7 +91,7 @@ func GetBlocks(ctx context.Context, blockSize int, srcPath string, websock *webs
 	// eBPF C program.
 	rd, err := ringbuf.NewReader(objs.Events)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("opening ringbuf reader: %s", err))
+		log.Printf("opening ringbuf reader: %s", err)
 	}
 	defer rd.Close()
 
@@ -101,14 +102,14 @@ func GetBlocks(ctx context.Context, blockSize int, srcPath string, websock *webs
 			select {
 			case <-stopper:
 				if err := rd.Close(); err != nil {
-					utils.LogError(fmt.Sprintf("closing ringbuf reader: %s", err))
+					log.Printf("closing ringbuf reader: %s", err)
 				}
 				return
 
 			case <-ctx.Done():
 
 				if err := rd.Close(); err != nil {
-					utils.LogError(fmt.Sprintf("closing ringbuf reader: %s", err))
+					log.Printf("closing ringbuf reader: %s", err)
 				}
 
 				return
@@ -117,24 +118,24 @@ func GetBlocks(ctx context.Context, blockSize int, srcPath string, websock *webs
 		}
 	}()
 
-	utils.LogDebug("Waiting for events..")
+	log.Println("Waiting for events..")
 	for {
 		record, err := rd.Read()
 		if err != nil {
 			if errors.Is(err, ringbuf.ErrClosed) {
-				utils.LogDebug("Received signal, exiting..")
-				utils.LogDebug(err.Error())
+				log.Println("Received signal, exiting..")
+				log.Println(err.Error())
 				os.Exit(0)
 
 			}
-			utils.LogError(fmt.Sprintf("reading from reader: %s", err))
+			log.Printf("reading from reader: %s", err)
 			continue
 		}
 
 		var event utils.Event
 		// Parse the ringbuf event entry into a bpfEvent structure.
 		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &event); err != nil {
-			utils.LogError(fmt.Sprintf("parsing ringbuf event: %s", err))
+			log.Printf("parsing ringbuf event: %s", err)
 			continue
 		}
 		var binaryBuffer bytes.Buffer
@@ -146,16 +147,16 @@ func GetBlocks(ctx context.Context, blockSize int, srcPath string, websock *webs
 		liveSectors.EndSector = event.EndBlock
 		enc := gob.NewEncoder(&binaryBuffer)
 		if err := enc.Encode(liveSectors); err != nil {
-			utils.LogError(fmt.Sprintf("Could not encode: %v", err))
+			log.Printf("Could not encode: %v", err)
 			continue
 		}
 		binaryData := binaryBuffer.Bytes()
 
 		if err := websock.WriteMessage(websocket.BinaryMessage, binaryData); err != nil {
-			utils.LogError(fmt.Sprintf("Could not send blocks: %v", err))
+			log.Printf("Could not send blocks: %v", err)
 			continue
 		}
-		utils.LogDebug(fmt.Sprintf("Sent sectors: %d-%d", event.Block, event.EndBlock))
+		log.Printf("Sent sectors: %d-%d", event.Block, event.EndBlock)
 	}
 }
 
@@ -193,7 +194,7 @@ func syncAndClearCache(srcPath string) error {
 }
 
 func ReadDataBlocks(blockSize int, srcPath string, pair utils.BlockPair, websock *websocket.Conn) {
-	utils.LogDebug(fmt.Sprintf("ReadDataBlocks started for blocks %d to %d on %s", pair.Start, pair.End, srcPath))
+	log.Printf("ReadDataBlocks started for blocks %d to %d on %s", pair.Start, pair.End, srcPath)
 
 	var agentBlocks utils.AgentBulkMessage
 	agentBlocks.AgentID, _ = os.Hostname()
@@ -202,14 +203,14 @@ func ReadDataBlocks(blockSize int, srcPath string, pair utils.BlockPair, websock
 
 	src, err := os.OpenFile(srcPath, os.O_RDONLY|unix.O_DIRECT, 0)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("Error opening source: %v", err))
+		log.Printf("Error opening source: %v", err)
 		return
 	}
 	defer src.Close()
 
 	_, err = src.Seek(int64(pair.Start)*int64(blockSize), io.SeekStart)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("Error seeking to block %d: %v", pair.Start, err))
+		log.Printf("Error seeking to block %d: %v", pair.Start, err)
 		return
 	}
 
@@ -217,7 +218,7 @@ func ReadDataBlocks(blockSize int, srcPath string, pair utils.BlockPair, websock
 		buf := make([]byte, blockSize)
 		n, err := src.Read(buf)
 		if err != nil && err != io.EOF {
-			utils.LogError(fmt.Sprintf("Error reading block %d: %v", blockNumber, err))
+			log.Printf("Error reading block %d: %v", blockNumber, err)
 			continue
 		}
 
@@ -235,17 +236,17 @@ func ReadDataBlocks(blockSize int, srcPath string, pair utils.BlockPair, websock
 			var binaryBuffer bytes.Buffer
 			enc := gob.NewEncoder(&binaryBuffer)
 			if err := enc.Encode(agentBlocks); err != nil {
-				utils.LogError(fmt.Sprintf("Could not encode: %v", err))
+				log.Printf("Could not encode: %v", err)
 				continue
 			}
 			binaryData := binaryBuffer.Bytes()
 
 			if err := websock.WriteMessage(websocket.BinaryMessage, binaryData); err != nil {
-				utils.LogError(fmt.Sprintf("Could not send blocks data: %v", err))
+				log.Printf("Could not send blocks data: %v", err)
 				continue
 			}
 
-			utils.LogDebug(fmt.Sprintf("Sent batch of %d blocks", len(agentBlocks.Data)))
+			log.Printf("Sent batch of %d blocks", len(agentBlocks.Data))
 			agentBlocks.Data = []utils.AgentDataBlock{} // Clear the data for the next batch
 		}
 
@@ -255,33 +256,33 @@ func ReadDataBlocks(blockSize int, srcPath string, pair utils.BlockPair, websock
 }
 
 func ReadBlocks(ctx context.Context, blockSize int, blockPairs []utils.BlockPair, srcPath string, websock *websocket.Conn) {
-	utils.LogDebug(fmt.Sprintf("Reading and sending block pairs for %s", srcPath))
+	log.Printf("Reading and sending block pairs for %s", srcPath)
 	if err := syncAndClearCache(srcPath); err != nil {
-		utils.LogError(fmt.Sprintf("Failed to sync and clear cache: %v", err))
+		log.Printf("Failed to sync and clear cache: %v", err)
 	}
 	for _, pair := range blockPairs {
 		select {
 		case <-ctx.Done():
-			utils.LogDebug("Context cancelled, stopping ReadBlocks")
+			log.Println("Context cancelled, stopping ReadBlocks")
 			return
 		default:
 			ReadDataBlocks(blockSize, srcPath, pair, websock)
 		}
 	}
-	utils.LogDebug("Finished reading and sending block pairs")
+	log.Println("Finished reading and sending block pairs")
 }
 
 func processSyncAction(msg utils.Message, ws *websocket.Conn) {
 	syncData := msg.SyncMessage
-	utils.LogDebug(fmt.Sprintf("Start syncing from: %s", syncData.SrcPath))
+	log.Printf("Start syncing from: %s", syncData.SrcPath)
 	ctx, _ := context.WithCancel(context.Background())
 	go ReadBlocks(ctx, syncData.BlockSize, syncData.Blocks, syncData.SrcPath, ws)
 }
 
 func processStopSyncAction() {
-	utils.LogDebug("Stoping sync action")
+	log.Println("Stoping sync action")
 	if cancelSync != nil {
-		utils.LogDebug("Stopping live migrations")
+		log.Println("Stopping live migrations")
 		cancelSync()
 	}
 	syncMutex.Lock()

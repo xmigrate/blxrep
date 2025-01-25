@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,7 +16,7 @@ import (
 )
 
 func processChunk(state *utils.RestoreState, data []byte, chunkIndex int) error {
-	utils.LogDebug(fmt.Sprintf("Received chunk %d, size: %d bytes", chunkIndex, len(data)))
+	log.Printf("Received chunk %d, size: %d bytes", chunkIndex, len(data))
 
 	if chunkIndex != state.ChunksReceived {
 		return fmt.Errorf("received out-of-order chunk: expected %d, got %d", state.ChunksReceived, chunkIndex)
@@ -62,7 +63,7 @@ func processCompleteData(state *utils.RestoreState) error {
 		}
 	}
 
-	utils.LogDebug("Restore process completed successfully")
+	log.Println("Restore process completed successfully")
 	return nil
 }
 
@@ -76,7 +77,7 @@ func extractEntry(basePath string, header *tar.Header, tarReader *tar.Reader) er
 	relPath = filepath.FromSlash(relPath)
 	target := filepath.Join(basePath, relPath)
 
-	utils.LogDebug(fmt.Sprintf("Extracting: %s, type: %c, size: %d bytes", target, header.Typeflag, header.Size))
+	log.Printf("Extracting: %s, type: %c, size: %d bytes", target, header.Typeflag, header.Size)
 
 	switch header.Typeflag {
 	case tar.TypeDir:
@@ -84,7 +85,7 @@ func extractEntry(basePath string, header *tar.Header, tarReader *tar.Reader) er
 	case tar.TypeReg:
 		return extractRegularFile(target, header, tarReader)
 	default:
-		utils.LogDebug(fmt.Sprintf("Unsupported file type: %c for %s", header.Typeflag, target))
+		log.Printf("Unsupported file type: %c for %s", header.Typeflag, target)
 		return nil // Skipping unsupported types
 	}
 }
@@ -106,12 +107,12 @@ func extractRegularFile(target string, header *tar.Header, tarReader *tar.Reader
 		return fmt.Errorf("error writing file %s: %v", target, err)
 	}
 
-	utils.LogDebug(fmt.Sprintf("File extracted: %s", target))
+	log.Printf("File extracted: %s", target)
 	return nil
 }
 
 func cleanupRestore(state *utils.RestoreState) {
-	utils.LogDebug("Cleaning up restore process")
+	log.Println("Cleaning up restore process")
 	if state.GzipReader != nil {
 		state.GzipReader.Close()
 	}
@@ -121,11 +122,11 @@ func cleanupRestore(state *utils.RestoreState) {
 const BlockSize = 512
 
 func RestorePartition(c *chan utils.AgentBulkMessage, agentID string, progress *int, destPath string) {
-	utils.LogDebug(fmt.Sprintf("Starting RestorePartition process for agent %s, destPath: %s", agentID, destPath))
+	log.Printf("Starting RestorePartition process for agent %s, destPath: %s", agentID, destPath)
 
 	f, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("Cannot open partition %s for agent %s: %v", destPath, agentID, err))
+		log.Printf("Cannot open partition %s for agent %s: %v", destPath, agentID, err)
 		return
 	}
 	defer f.Close()
@@ -139,7 +140,7 @@ func RestorePartition(c *chan utils.AgentBulkMessage, agentID string, progress *
 		select {
 		case msg, ok := <-*c:
 			if !ok {
-				utils.LogDebug(fmt.Sprintf("Channel closed, exiting RestorePartition for agent %s", agentID))
+				log.Printf("Channel closed, exiting RestorePartition for agent %s", agentID)
 				return
 			}
 			lastActivityTime = time.Now()
@@ -149,23 +150,23 @@ func RestorePartition(c *chan utils.AgentBulkMessage, agentID string, progress *
 			for _, blockData := range msg.Data {
 				n, err := f.Write(blockData.BlockData)
 				if err != nil {
-					utils.LogError(fmt.Sprintf("Failed to write to file for agent %s: %v", agentID, err))
+					log.Printf("Failed to write to file for agent %s: %v", agentID, err)
 					return
 				}
 				batchBytesWritten += int64(n)
 				totalBytesWritten += int64(n)
 
 			}
-			utils.LogDebug(fmt.Sprintf("Batch received for agent %s: Wrote %d bytes", agentID, batchBytesWritten))
-			utils.LogDebug(fmt.Sprintf("Total for agent %s: Messages received: %d, Bytes written: %d", agentID, totalMessagesReceived, totalBytesWritten))
+			log.Printf("Batch received for agent %s: Wrote %d bytes", agentID, batchBytesWritten)
+			log.Printf("Total for agent %s: Messages received: %d, Bytes written: %d", agentID, totalMessagesReceived, totalBytesWritten)
 			// TODO: Below code might not be needed, hence commenting it out. No point in updating progress for restore from agent in dispatcher boltdb.
 			// actionId := strings.Join([]string{agentID, fmt.Sprintf("%d", msg.StartTime)}, "_")
 			// dispatcher.UpdateProgress(msg, progress, actionId, agentID, destPath)
 
 		case <-time.After(timeoutDuration):
-			utils.LogDebug(fmt.Sprintf("No data for %v. Exiting RestorePartition for agent %s", timeoutDuration, agentID))
-			utils.LogDebug(fmt.Sprintf("Final stats for agent %s: Total messages received: %d, Total bytes written: %d", agentID, totalMessagesReceived, totalBytesWritten))
-			utils.LogDebug(fmt.Sprintf("Time since last activity: %v", time.Since(lastActivityTime)))
+			log.Printf("No data for %v. Exiting RestorePartition for agent %s", timeoutDuration, agentID)
+			log.Printf("Final stats for agent %s: Total messages received: %d, Total bytes written: %d", agentID, totalMessagesReceived, totalBytesWritten)
+			log.Printf("Time since last activity: %v", time.Since(lastActivityTime))
 			return
 		}
 	}

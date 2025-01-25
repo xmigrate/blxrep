@@ -40,6 +40,7 @@ jobs:
         run: |
           GOOS=linux GOARCH=amd64 CGO_ENABLED=1 go build -o blxrep main.go
           cp blxrep package/usr/local/bin/
+          chmod +x package/usr/local/bin/blxrep
 
       - name: Package with FPM for deb
         uses: bpicode/github-action-fpm@master

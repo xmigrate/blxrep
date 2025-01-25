@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"strings"
@@ -85,10 +86,10 @@ func ConnectToDispatcher(agentID string, dispatcherAddr string) {
 
 	for {
 		if utils.AgentConfiguration.SnapshotTime != "" {
-			utils.LogDebug("Starting snapshot scheduled jobs")
+			log.Println("Starting snapshot scheduled jobs")
 			err := StartScheduledJobs(agentID, snapshotURL.String())
 			if err != nil {
-				utils.LogError(fmt.Sprintf("Failed to start scheduled jobs: %v", err))
+				log.Println(fmt.Sprintf("Failed to start scheduled jobs: %v", err))
 			}
 			break
 		}
@@ -99,17 +100,17 @@ func ConnectToDispatcher(agentID string, dispatcherAddr string) {
 		defer wg.Done()
 		for {
 			if len(utils.AgentConfiguration.Disks) == 0 {
-				utils.LogDebug("Agent configuration not yet set, waiting...")
+				log.Println("Agent configuration not yet set, waiting...")
 				// Trying to update the config
 				if err := connectAndHandle(agentID, configURL.String()); err != nil {
-					utils.LogError(fmt.Sprintf("Config connection error: %v", err))
+					log.Println(fmt.Sprintf("Config connection error: %v", err))
 				}
 				time.Sleep(15 * time.Second)
 				continue
 			}
 			utils.LogDebug(fmt.Sprintf("Agent %s connecting to snapshot endpoint: %s", agentID, snapshotURL.String()))
 			if err := connectAndHandle(agentID, snapshotURL.String()); err != nil {
-				utils.LogError(fmt.Sprintf("Snapshot connection error: %v", err))
+				log.Println(fmt.Sprintf("Snapshot connection error: %v", err))
 			}
 			time.Sleep(5 * time.Second)
 		}
@@ -119,13 +120,13 @@ func ConnectToDispatcher(agentID string, dispatcherAddr string) {
 		defer wg.Done()
 		for {
 			if len(utils.AgentConfiguration.Disks) == 0 {
-				utils.LogDebug("Agent configuration not yet set, waiting...")
+				log.Println("Agent configuration not yet set, waiting...")
 				time.Sleep(15 * time.Second)
 				continue
 			}
 			utils.LogDebug(fmt.Sprintf("Agent %s connecting to live endpoint: %s", agentID, liveURL.String()))
 			if err := connectAndHandle(agentID, liveURL.String()); err != nil {
-				utils.LogError(fmt.Sprintf("Live connection error: %v", err))
+				log.Println(fmt.Sprintf("Live connection error: %v", err))
 			}
 			time.Sleep(5 * time.Second)
 		}
@@ -136,7 +137,7 @@ func ConnectToDispatcher(agentID string, dispatcherAddr string) {
 		for {
 			utils.LogDebug(fmt.Sprintf("Agent %s connecting to restore endpoint: %s", agentID, restoreURL.String()))
 			if err := connectAndHandle(agentID, restoreURL.String()); err != nil {
-				utils.LogError(fmt.Sprintf("Restore connection error: %v", err))
+				log.Println(fmt.Sprintf("Restore connection error: %v", err))
 			}
 			time.Sleep(5 * time.Second)
 		}
@@ -170,7 +171,7 @@ func connectAndHandle(agentID string, urlString string) error {
 	conn.SetPingHandler(func(appData string) error {
 		err := conn.WriteControl(websocket.PongMessage, []byte{}, time.Now().Add(10*time.Second))
 		if err != nil {
-			utils.LogError(fmt.Sprintf("Failed to send pong: %v", err))
+			log.Println(fmt.Sprintf("Failed to send pong: %v", err))
 			return err
 		}
 		return nil
@@ -195,7 +196,7 @@ func connectAndHandle(agentID string, urlString string) error {
 
 	utils.LogDebug(fmt.Sprintf("Agent %s authenticated successfully on %s", agentID, urlString))
 	if strings.Contains(urlString, "snapshot") {
-		utils.LogDebug("Starting snapshot data stream handling")
+		log.Println("Starting snapshot data stream handling")
 		cloneMutex.Lock()
 		if !isCloning {
 			isCloning = true
@@ -209,13 +210,13 @@ func connectAndHandle(agentID string, urlString string) error {
 					cloneMutex.Unlock()
 				}()
 				for _, dev := range utils.AgentConfiguration.Disks {
-					utils.LogDebug(fmt.Sprintf("Started cloning device: %s", dev))
+					log.Println(fmt.Sprintf("Started cloning device: %s", dev))
 					Clone(ctx, 512, dev, 12000, conn, &cloneMutex, &isCloning)
 				}
 			}()
 		} else {
 			cloneMutex.Unlock()
-			utils.LogDebug("Cloning already in progress, skipping for this connection")
+			log.Println("Cloning already in progress, skipping for this connection")
 		}
 	} else if strings.Contains(urlString, "live") {
 		utils.LogDebug("Starting live data stream handling")

@@ -1,13 +1,11 @@
 # Sample agent configuration
 # mode: "agent"
-# id: "agent2"
+# id: "hostname"
 # dispatcher-addr: "localhost:8080"
-# device: "/dev/nvme0n1"
 
 # Sample dispatcher configuration
 # mode: "dispatcher"
 # data-dir: "/data"
-# sync-freq: 3
 # policy-dir: "/etc/blxrep/policies"
 
 # Add user configuration for registration

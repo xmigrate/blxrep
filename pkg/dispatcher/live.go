@@ -305,7 +305,16 @@ func sortAndDeduplicate(pairs []utils.BlockPair) []utils.BlockPair {
 }
 
 func SyncData(conn *websocket.Conn, agentID string, force bool) {
-	age := time.Duration(utils.AppConfiguration.SyncFreq) * time.Minute
+	agent, err := service.GetAgent(agentID)
+	if err != nil {
+		utils.LogError("Error getting agent " + agentID + ": " + err.Error())
+		return
+	}
+	age, err := time.ParseDuration(agent.LiveSyncFreq)
+	if err != nil {
+		utils.LogError("Error parsing live sync frequency for agent " + agentID + ": " + err.Error())
+		return
+	}
 	filePattern := fmt.Sprintf("%s_*.cst", agentID)
 	pattern := filepath.Join(utils.AppConfiguration.DataDir, "incremental", filePattern)
 	utils.LogDebug("Looking for files matching pattern " + pattern)

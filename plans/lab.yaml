@@ -5,7 +5,7 @@ snapshot_frequency: "daily"
 snapshot_time: "12:00"
 bandwidth_limit: 100
 snapshot_retention: 30
-live_sync_frequency: 2
+live_sync_frequency: 2m
 transition_after_days: 30
 delete_after_days: 90
 

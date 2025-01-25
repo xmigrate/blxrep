@@ -138,9 +138,7 @@ Example configuration:
 mode: "dispatcher"  # or "agent"
 id: "agent1"  # required for agent mode
 dispatcher-addr: "localhost:8080"  # required for agent mode
-device: "/dev/xvda"  # required for agent mode
 data-dir: "/data"  # required for dispatcher mode
-sync-freq: 3  # sync frequency in minutes, required for dispatcher mode
 policy-dir: "/etc/blxrep/policies"  # required for dispatcher mode
 ```
 

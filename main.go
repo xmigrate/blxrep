@@ -21,13 +21,6 @@ var publicKeyData []byte
 func main() {
 	utils.PrintAnimatedLogo()
 
-	logDir := "/data/logs"
-	err := utils.InitLogging(logDir)
-	if err != nil {
-		utils.LogError(fmt.Sprintf("Error initializing log directory: %v", err))
-		return
-	}
-	defer utils.CloseLogFile()
 	utils.PublicKeyData = publicKeyData
 
 	rootCmd := cmd.GetRootCmd()

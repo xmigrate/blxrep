@@ -153,6 +153,7 @@ func DecompressFileWithProgress(inputPath string, progressChan chan ProgressInfo
 }
 
 func CompressJob() error {
+	// TODO separate compress jobs for each agent
 	utils.LogDebug(fmt.Sprintf("Compress jobs started to run at %s", time.Now().Format(time.RFC3339)))
 	for {
 		if utils.AppConfiguration.ArchiveInterval == "" {

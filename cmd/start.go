@@ -21,7 +21,6 @@ var startCmd = &cobra.Command{
 		switch mode {
 		case "dispatcher":
 			dataDir := viper.GetString("data-dir")
-			syncFreq := viper.GetInt("sync-freq")
 			targets := viper.GetStringSlice("targets")
 			policyDir := viper.GetString("policy-dir")
 			fmt.Println("Dispatcher started...")
@@ -33,16 +32,10 @@ var startCmd = &cobra.Command{
 				fmt.Println("Policy directory is required")
 				return
 			}
-			if syncFreq == 0 {
-				fmt.Println("Sync frequency is required")
-				return
-			}
-
-			dispatcher.Start(dataDir, syncFreq, targets, policyDir)
+			dispatcher.Start(dataDir, targets, policyDir)
 		case "agent":
 			agentID := viper.GetString("id")
 			dispatcherAddr := viper.GetString("dispatcher-addr")
-			device := viper.GetStringSlice("device")
 			if agentID == "" {
 				fmt.Println("Agent ID is required")
 				return
@@ -52,7 +45,7 @@ var startCmd = &cobra.Command{
 				return
 			}
 			fmt.Printf("Starting agent with ID: %s, connecting to dispatcher at: %s\n", agentID, dispatcherAddr)
-			agent.Start(agentID, dispatcherAddr, device)
+			agent.Start(agentID, dispatcherAddr)
 		default:
 			fmt.Println("Invalid mode. Use 'dispatcher' or 'agent' in config or --mode flag")
 		}
@@ -67,16 +60,12 @@ func init() {
 	startCmd.Flags().String("mode", "", "Start mode: 'dispatcher' or 'agent'")
 	startCmd.Flags().String("id", "", "Agent ID (required for agent)")
 	startCmd.Flags().String("dispatcher-addr", "", "Dispatcher address (required for agent, format: host:port)")
-	startCmd.Flags().String("device", "", "Device to use (required for agent, e.g., /dev/xvda)")
 	startCmd.Flags().String("data-dir", "", "Data directory (required for dispatcher)")
-	startCmd.Flags().Int("sync-freq", 0, "Sync frequency in seconds (required for dispatcher)")
 	startCmd.Flags().String("policy-dir", "", "Policy directory (required for dispatcher)")
 	viper.BindPFlag("mode", startCmd.Flags().Lookup("mode"))
 	viper.BindPFlag("id", startCmd.Flags().Lookup("id"))
 	viper.BindPFlag("dispatcher-addr", startCmd.Flags().Lookup("dispatcher-addr"))
-	viper.BindPFlag("device", startCmd.Flags().Lookup("device"))
 	viper.BindPFlag("data-dir", startCmd.Flags().Lookup("data-dir"))
-	viper.BindPFlag("sync-freq", startCmd.Flags().Lookup("sync-freq"))
 	viper.BindPFlag("policy-dir", startCmd.Flags().Lookup("policy-dir"))
 	rootCmd.AddCommand(startCmd)
 }

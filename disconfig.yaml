@@ -1,6 +1,5 @@
 mode: "dispatcher"
 data-dir: "/data"
-sync-freq: 3
 targets: 
   - "AWSDemo"
 backend-url: "https://app.predator00758.com"

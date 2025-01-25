@@ -63,7 +63,7 @@ func (rm *RestoreManager) runRestore(agentID string, srcPath string) {
 	utils.LogDebug(fmt.Sprintf("Completed restore process for agent %s, srcPath: %s", agentID, srcPath))
 }
 
-func ConnectToDispatcher(agentID string, dispatcherAddr string, device []string) {
+func ConnectToDispatcher(agentID string, dispatcherAddr string) {
 	snapshotURL := url.URL{Scheme: "ws", Host: dispatcherAddr, Path: "/ws/snapshot"}
 	liveURL := url.URL{Scheme: "ws", Host: dispatcherAddr, Path: "/ws/live"}
 	restoreURL := url.URL{Scheme: "ws", Host: dispatcherAddr, Path: "/ws/restore"}

@@ -44,14 +44,21 @@ type AgentChannels struct {
 	Progress        int
 }
 
-func Start(dataDir string, syncFreq int, targets []string, policyDir string) {
+func Start(dataDir string, targets []string, policyDir string) {
 	utils.AppConfiguration.DataDir = dataDir
-	utils.AppConfiguration.SyncFreq = syncFreq
 	utils.AppConfiguration.Targets = targets
 	utils.AppConfiguration.Cdc = true
 	utils.AppConfiguration.PolicyDir = policyDir
 	utils.LogDebug("Dispatcher started")
+	var err error
 
+	logDir := filepath.Join(dataDir, "logs")
+	err = utils.InitLogging(logDir)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("Error initializing log directory: %v", err))
+		return
+	}
+	defer utils.CloseLogFile()
 	// Initialize the agents map
 	agents = make(map[string]*AgentChannels)
 
@@ -68,7 +75,6 @@ func Start(dataDir string, syncFreq int, targets []string, policyDir string) {
 			utils.LogError(fmt.Sprintf("WebSocket server error: %v", err))
 		}
 	}()
-	var err error
 
 	err = StartSnapshotCleanupJobs()
 	if err != nil {

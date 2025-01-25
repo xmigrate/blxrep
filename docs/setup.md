@@ -1,3 +1,7 @@
+---
+title: Let's setup blxrep!
+description: Setting up blxrep is easy! Get started from here..
+---
 # Setup guide
 ## Agent Setup
 

@@ -1,3 +1,7 @@
+---
+title: An interactive terminal UI
+description: blxrep provides an interactive terminal UI to navigate through the backups of an agent.
+---
 # TUI Operations
 
 ## Navigating through the backups of an agent

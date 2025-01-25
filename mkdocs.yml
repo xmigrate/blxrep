@@ -1,7 +1,16 @@
 site_name: blxrep
-site_url: https://xmigrate.cloud/blxrep
+site_url: https://blxrep.xmigrate.cloud
 repo_url: https://github.com/xmigrate/blxrep
 repo_name: xmigrate/blxrep
+
+plugins:
+  - search
+  - social:
+      cards_layout_options:
+        background_color: "#dde0e6"
+        color: "#4c1d95"
+        background_image: assets/blxrepsocialxm.jpg
+
 theme:
   name: material
   favicon: assets/blxrepIcon.svg
@@ -42,3 +51,4 @@ markdown_extensions:
   - attr_list
 
 copyright: Copyright &copy; 2025 Xmigrate Inc.
+

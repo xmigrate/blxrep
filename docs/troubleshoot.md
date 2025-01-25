@@ -1,3 +1,7 @@
+---
+title: What could go wrong?
+description: Let's see what could go wrong with blxrep...
+---
 # Troubleshooting
 
 ## Agent not connecting to the dispatcher

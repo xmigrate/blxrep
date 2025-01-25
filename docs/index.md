@@ -1,3 +1,7 @@
+---
+title: An eBPF based disk replication tool
+description: Get started with blxrep, an eBPF based disk replication tool designed for live data replication of disks over a network.
+---
 <p align="center">
   <img src="assets/logo.svg" alt="blxrep logo" width="400"/>
 </p>

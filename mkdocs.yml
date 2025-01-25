@@ -1,0 +1,44 @@
+site_name: blxrep
+site_url: https://xmigrate.cloud/blxrep
+repo_url: https://github.com/xmigrate/blxrep
+repo_name: xmigrate/blxrep
+theme:
+  name: material
+  favicon: assets/blxrepIcon.svg
+  palette:
+    - scheme: default
+      primary: white
+      accent: deep purple
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      primary: black
+      accent: deep purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    # primary: white
+    # accent: deep purple
+  logo: assets/blxrepIcon.svg
+  features:
+    - navigation.sections
+    - content.code.copy
+    - navigation.footer
+nav:
+  - Home: index.md
+  - Motivation: motivation.md
+  - Architecture: architecture.md
+  - Setup: setup.md
+  - TUI: tui.md
+  - Troubleshoot: troubleshoot.md
+
+markdown_extensions:
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.superfences
+  - attr_list
+
+copyright: Copyright &copy; 2025 Xmigrate Inc.

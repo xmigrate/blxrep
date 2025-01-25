@@ -46,11 +46,11 @@ blxrep modernizes this approach by leveraging eBPF tracepoints to track disk cha
 
 1. Download the package:
 ```bash
-wget https://github.com/xmigrate/blxrep/releases/download/v0.0.2/blxrep-0.0.2-amd64.deb
+wget https://github.com/xmigrate/blxrep/releases/download/v0.0.7/blxrep-0.0.7-amd64.deb
 ```
 2. Install the package:
 ```bash
-sudo dpkg -i blxrep-0.0.2-amd64.deb
+sudo dpkg -i blxrep-0.0.7-amd64.deb
 ```
 > Note: If you get an error about missing dependencies, you can install them with:
 ```bash
@@ -61,11 +61,11 @@ sudo apt-get install -f
 
 1. Download the package:
 ```bash
-wget https://github.com/xmigrate/blxrep/releases/download/v0.0.2/blxrep-0.0.2-x86_64.rpm
+wget https://github.com/xmigrate/blxrep/releases/download/v0.0.7/blxrep-0.0.7-x86_64.rpm
 ```
 2. Install the package:
 ```bash
-sudo rpm -i blxrep-0.0.2-x86_64.rpm
+sudo rpm -i blxrep-0.0.7-x86_64.rpm
 ```
 
 ## Verify the installation:

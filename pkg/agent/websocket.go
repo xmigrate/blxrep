@@ -76,9 +76,9 @@ func ConnectToDispatcher(agentID string, dispatcherAddr string) {
 	go func() {
 		defer wg.Done()
 		for {
-			utils.LogDebug(fmt.Sprintf("Agent %s connecting to config endpoint: %s", agentID, configURL.String()))
+			log.Printf("Agent %s connecting to config endpoint: %s", agentID, configURL.String())
 			if err := connectAndHandle(agentID, configURL.String()); err != nil {
-				utils.LogError(fmt.Sprintf("Config connection error: %v", err))
+				log.Printf("Config connection error: %v", err)
 			}
 			time.Sleep(15 * time.Second)
 		}
@@ -194,7 +194,7 @@ func connectAndHandle(agentID string, urlString string) error {
 		return fmt.Errorf("Authentication failed: %s", string(message))
 	}
 
-	utils.LogDebug(fmt.Sprintf("Agent %s authenticated successfully on %s", agentID, urlString))
+	log.Printf("Agent %s authenticated successfully on %s", agentID, urlString)
 	if strings.Contains(urlString, "snapshot") {
 		log.Println("Starting snapshot data stream handling")
 		cloneMutex.Lock()
@@ -219,18 +219,18 @@ func connectAndHandle(agentID string, urlString string) error {
 			log.Println("Cloning already in progress, skipping for this connection")
 		}
 	} else if strings.Contains(urlString, "live") {
-		utils.LogDebug("Starting live data stream handling")
+		log.Println("Starting live data stream handling")
 		liveMutex.Lock()
 		if !isLive {
 			isLive = true
-			utils.LogDebug(fmt.Sprintf("Starting live data stream for %s", utils.AgentConfiguration.Disks))
+			log.Printf("Starting live data stream for %s", utils.AgentConfiguration.Disks)
 			var ctx context.Context
 			ctx, cancelLive = context.WithCancel(context.Background())
 			for _, dev := range utils.AgentConfiguration.Disks {
 				go GetBlocks(ctx, 512, dev, conn, agentID)
-				utils.LogDebug(fmt.Sprintf("Started live data stream for device: %s", dev))
+				log.Printf("Started live data stream for device: %s", dev)
 			}
-			utils.LogDebug("Change block tracking started..")
+			log.Println("Change block tracking started..")
 		}
 		liveMutex.Unlock()
 	} else if strings.Contains(urlString, "config") {
@@ -238,13 +238,13 @@ func connectAndHandle(agentID string, urlString string) error {
 		if err != nil {
 			return err
 		}
-		utils.LogDebug(fmt.Sprintf("Footprint %v", vmInfo))
+		log.Printf("Footprint %v", vmInfo)
 		var footprint utils.AgentBulkMessage
 		footprint.AgentID, _ = os.Hostname()
 		footprint.DataType = "footprint"
 		footprint.Footprint = *vmInfo
 		jsonData, err := json.Marshal(footprint)
-		utils.LogDebug(fmt.Sprintf("Footprint sent to %s", urlString))
+		log.Printf("Footprint sent to %s", urlString)
 
 		if err != nil {
 			return err
@@ -259,7 +259,7 @@ func connectAndHandle(agentID string, urlString string) error {
 		messageType, message, err := conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				utils.LogError(fmt.Sprintf("WebSocket read error: %v", err))
+				log.Printf("WebSocket read error: %v", err)
 			}
 			return fmt.Errorf("WebSocket read error: %v", err)
 		}
@@ -267,7 +267,7 @@ func connectAndHandle(agentID string, urlString string) error {
 		if messageType == websocket.PingMessage {
 			err = conn.WriteControl(websocket.PongMessage, []byte{}, time.Now().Add(10*time.Second))
 			if err != nil {
-				utils.LogError(fmt.Sprintf("Failed to send pong: %v", err))
+				log.Printf("Failed to send pong: %v", err)
 				return err
 			}
 			continue
@@ -275,50 +275,50 @@ func connectAndHandle(agentID string, urlString string) error {
 		var msg utils.Message
 		err = json.Unmarshal(message, &msg)
 		if err != nil {
-			utils.LogError(fmt.Sprintf("Error unmarshalling JSON: %v", err))
+			log.Printf("Error unmarshalling JSON: %v", err)
 			continue
 		}
-		utils.LogDebug(fmt.Sprintf("Recieved Message %v ", msg.Action))
+		log.Printf("Recieved Message %v ", msg.Action)
 		switch msg.Action {
 		default:
-			utils.LogDebug(fmt.Sprintf("Received unknown command on %s: %s", urlString, string(msg.Action)))
+			log.Printf("Received unknown command on %s: %s", urlString, string(msg.Action))
 		case "config":
-			utils.LogDebug("Received config message")
+			log.Println("Received config message")
 			utils.AgentConfiguration = msg.ConfigMessage
-			utils.LogDebug(fmt.Sprintf("Agent configuration received: %v", msg.ConfigMessage))
-			utils.LogDebug(fmt.Sprintf("Agent configuration set to: %v", utils.AgentConfiguration))
+			log.Printf("Agent configuration received: %v", msg.ConfigMessage)
+			log.Printf("Agent configuration set to: %v", utils.AgentConfiguration)
 		case "resume":
 			cloneMutex.Lock()
 			if !isCloning {
 				isCloning = true
 				resumeData := msg.ResumeMessage
-				utils.LogDebug("Entered Resume switch case")
+				log.Println("Entered Resume switch case")
 				var ctx context.Context
 				ctx, cancel = context.WithCancel(context.Background())
 				go Resume(ctx, resumeData.BlockSize, resumeData.SrcPath, resumeData.ChannelSize, resumeData.ReadFrom, conn, &cloneMutex, &isCloning)
 			}
 			cloneMutex.Unlock()
 		case "pause":
-			utils.LogDebug("Entered pause switch case")
+			log.Println("Entered pause switch case")
 			if cancel != nil {
-				utils.LogDebug("Cancelling cloning")
+				log.Println("Cancelling cloning")
 				cancel()
 			}
 			cloneMutex.Lock()
 			isCloning = false
 			cloneMutex.Unlock()
 		case "stop":
-			utils.LogDebug("Received stop command")
+			log.Println("Received stop command")
 			cancel()
 		case utils.CONST_AGENT_ACTION_SYNC:
-			utils.LogDebug("Entered Sync switch case")
+			log.Println("Entered Sync switch case")
 			processSyncAction(msg, conn)
 			utils.LogDebug(fmt.Sprintf("Received command on %s: %s", urlString, string(msg.Action)))
 		case "StopSync":
-			utils.LogDebug("Entered StopSync switch case")
+			log.Println("Entered StopSync switch case")
 			processStopSyncAction()
 		case utils.CONST_AGENT_ACTION_PARTITION_RESTORE:
-			utils.LogDebug("Entered Partition Restore switch case")
+			log.Println("Entered Partition Restore switch case")
 			var bulkMsg utils.AgentBulkMessage
 			err = json.Unmarshal(message, &bulkMsg)
 			if err != nil {
@@ -328,7 +328,7 @@ func connectAndHandle(agentID string, urlString string) error {
 			restoreManager.TryStartRestore(bulkMsg, agentID)
 
 		case utils.CONST_AGENT_ACTION_RESTORE:
-			utils.LogDebug("Entered Restore switch case")
+			log.Println("Entered Restore switch case")
 			restoreMsg := msg.RestoreMessage
 			switch restoreMsg.Type {
 			case "start":
@@ -340,7 +340,7 @@ func connectAndHandle(agentID string, urlString string) error {
 					TotalChunks: restoreMsg.TotalChunks,
 					FilePath:    restoreMsg.FilePath,
 				}
-				utils.LogDebug(fmt.Sprintf("Started new restore process for %s", restoreMsg.FilePath))
+				log.Printf("Started new restore process for %s", restoreMsg.FilePath)
 			case "chunk":
 				if currentRestoreState == nil {
 					return fmt.Errorf("received chunk without start message")
@@ -365,9 +365,9 @@ func connectAndHandle(agentID string, urlString string) error {
 					return fmt.Errorf("error processing complete data: %v", err)
 				}
 				currentRestoreState = nil // Reset the state after completion
-				utils.LogDebug("Restore process completed successfully")
+				log.Println("Restore process completed successfully")
 			case "cancel":
-				utils.LogDebug("File restoration cancelled")
+				log.Println("File restoration cancelled")
 				if restoreState != nil {
 					cleanupRestore(restoreState)
 				}

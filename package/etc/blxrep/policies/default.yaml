@@ -13,4 +13,4 @@ targets:
   # Range pattern
   - pattern: "*"
     disks_excluded: 
-      - "/dev/xvda"
+      - "/dev/xvdz" # If you don't want to exclude any disks from backup put a disk name that doesn't exist

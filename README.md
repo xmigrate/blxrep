@@ -2,7 +2,7 @@
   <img src="assets/logo.svg" alt="blxrep logo" width="400"/>
 </p>
 
-# blxrep
+# blxrep - WIP, releasing soon!!
 
 blxrep is a powerful tool designed for live data replication of disks over a network. It operates in two modes: dispatcher and agent, allowing for efficient and flexible disaster recovery setup.
 blxrep tracks the changes that happen on disk at sector level using eBPF tracepoints.

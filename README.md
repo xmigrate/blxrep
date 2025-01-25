@@ -132,14 +132,21 @@ sudo rpm -e blxrep
 
 blxrep uses a configuration file located at `/etc/blxrep/config.yaml` by default. You can specify a different configuration file using the `--config` flag.
 
-Example configuration:
+Example configuration for agent:
 
 ```yaml
-mode: "dispatcher"  # or "agent"
-id: "agent1"  # required for agent mode
-dispatcher-addr: "localhost:8080"  # required for agent mode
-data-dir: "/data"  # required for dispatcher mode
-policy-dir: "/etc/blxrep/policies"  # required for dispatcher mode
+mode: "agent"
+id: "hostname"
+dispatcher-addr: "localhost:8080"
+data-dir: "/data"
+```
+
+Example configuration for dispatcher:
+
+```yaml
+mode: "dispatcher"
+data-dir: "/data"
+policy-dir: "/etc/blxrep/policies"
 ```
 
 ## Usage
@@ -153,13 +160,14 @@ blxrep start [flags]
 ```
 
 Flags:
-- `--mode`: Start mode ('dispatcher' or 'agent')
-- `--id`: Agent ID (required for agent mode)
-- `--dispatcher-addr`: Dispatcher address (required for agent mode, format: host:port)
-- `--data-dir`: Data directory (required for dispatcher mode)
-- `--sync-freq`: Sync frequency in minutes (required for dispatcher mode)
-- `--policy-dir`: Policy directory (required for dispatcher mode)
-- `--config`: Configuration file (optional)
+| Flag | Description | Required For |
+|------|-------------|--------------|
+| `--mode` | Start mode ('dispatcher' or 'agent') | Both |
+| `--id` | Agent ID | Agent mode |
+| `--dispatcher-addr` | Dispatcher address (format: host:port) | Agent mode |
+| `--data-dir` | Data directory | Dispatcher mode |
+| `--policy-dir` | Policy directory | Dispatcher mode |
+| `--config` | Configuration file | Optional |
 
 
 ## Modes of Operation

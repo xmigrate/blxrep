@@ -543,7 +543,9 @@ func CheckpointMergeFromSnapshot(snapshotPath string, snapshotId string) (string
 
 	utils.LogDebug(fmt.Sprintf("Processing snapshot %s for agent %s with timestamp %s",
 		baseFileName, agent, timestamp))
-
+	if _, err := os.Stat(filepath.Join(utils.AppConfiguration.DataDir, "final")); os.IsNotExist(err) {
+		os.MkdirAll(filepath.Join(utils.AppConfiguration.DataDir, "final"), 0755)
+	}
 	// Create the final snapshot path
 	finalSnapshot := filepath.Join(utils.AppConfiguration.DataDir, "final", fmt.Sprintf("%s-%s%s.img", parts[0], snapshotId, strings.ReplaceAll(parts[1], "-", "_")))
 
@@ -564,6 +566,9 @@ func CheckpointMergeFromSnapshot(snapshotPath string, snapshotId string) (string
 }
 
 func CheckpointMerge(checkpoint, dataDir string, agent string, disk string) (string, error) {
+	if _, err := os.Stat(filepath.Join(utils.AppConfiguration.DataDir, "final")); os.IsNotExist(err) {
+		os.MkdirAll(filepath.Join(utils.AppConfiguration.DataDir, "final"), 0755)
+	}
 	pattern := `(\d{12})\.bak$`
 	re := regexp.MustCompile(pattern)
 	match := re.FindStringSubmatch(checkpoint)

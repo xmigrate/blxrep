@@ -152,136 +152,135 @@ func DecompressFileWithProgress(inputPath string, progressChan chan ProgressInfo
 	return nil
 }
 
-func CompressJob() error {
-	// TODO separate compress jobs for each agent
-	utils.LogDebug(fmt.Sprintf("Compress jobs started to run at %s", time.Now().Format(time.RFC3339)))
-	for {
-		if utils.AppConfiguration.ArchiveInterval == "" {
-			utils.LogError("Archive interval is not set, waiting for config to be updated")
-			time.Sleep(3 * time.Second)
+func processFiles(agentId string, interval time.Duration, archiveDir string) error {
+	// Get all files in the snapshot directory
+	snapshotDir := filepath.Join(utils.AppConfiguration.DataDir, "snapshot")
+	files, err := os.ReadDir(snapshotDir)
+	if err != nil {
+		return fmt.Errorf("failed to read snapshot directory: %v", err)
+	}
+
+	for _, file := range files {
+		if file.IsDir() {
 			continue
 		}
-		utils.LogDebug(fmt.Sprintf("Archive interval is set to %s", utils.AppConfiguration.ArchiveInterval))
-		break
+
+		// Skip already compressed files, log files, not img files, and not currentagent files
+		if !strings.HasSuffix(file.Name(), ".img") ||
+			strings.HasSuffix(file.Name(), ".zst") ||
+			!strings.Contains(file.Name(), agentId) {
+			continue
+		}
+
+		filePath := filepath.Join(snapshotDir, file.Name())
+		fileInfo, err := file.Info()
+		if err != nil {
+			utils.LogError(fmt.Sprintf("Failed to get file info for %s: %v", filePath, err))
+			continue
+		}
+
+		// Check if file is older than archive interval
+		if time.Since(fileInfo.ModTime()) > interval {
+			utils.LogDebug(fmt.Sprintf("Processing file for archival: %s", filePath))
+
+			// Create progress channel
+			progressChan := make(chan ProgressInfo)
+
+			// Start progress monitoring goroutine
+			actionId := strings.TrimSuffix(file.Name(), ".img")
+			archiveId := utils.AppConfiguration.DataDir + "/archive/" + file.Name() + ".zst"
+			go UpdateCompressProgress(progressChan, actionId, archiveId)
+
+			// Compress the file
+			if err := CompressFileWithProgress(filePath, progressChan); err != nil {
+				utils.LogError(fmt.Sprintf("Failed to compress %s: %v", filePath, err))
+				close(progressChan)
+				continue
+			}
+			close(progressChan)
+
+			// Move compressed file to archive directory
+			compressedPath := filePath + ".zst"
+			archivePath := filepath.Join(archiveDir, file.Name()+".zst")
+
+			if err := os.Rename(compressedPath, archivePath); err != nil {
+				utils.LogError(fmt.Sprintf("Failed to move compressed file to archive: %v", err))
+				continue
+			}
+
+			// Move corresponding log file if it exists
+			logPath := strings.TrimSuffix(filePath, ".img") + ".log"
+			archiveLogPath := filepath.Join(archiveDir, strings.TrimSuffix(file.Name(), ".img")+".log")
+
+			// Check if log file exists before trying to move it
+			if _, err := os.Stat(logPath); err == nil {
+				if err := os.Rename(logPath, archiveLogPath); err != nil {
+					utils.LogError(fmt.Sprintf("Failed to move log file to archive: %v", err))
+				}
+			} else {
+				utils.LogDebug(fmt.Sprintf("No log file found for %s", file.Name()))
+			}
+
+			// Remove original file after successful compression and move
+			if err := os.Remove(filePath); err != nil {
+				utils.LogError(fmt.Sprintf("Failed to remove original file: %v", err))
+			} else {
+				utils.LogDebug(fmt.Sprintf("Successfully compressed and archived %s", file.Name()))
+			}
+		}
 	}
-	interval, err := utils.ParseDuration(utils.AppConfiguration.ArchiveInterval)
+	return nil
+}
+
+func CompressJob() error {
+	agents, err := service.GetAllAgentsMap(-1)
 	if err != nil {
-		utils.LogError(fmt.Sprintf("Failed to parse archive interval: %v", err))
+		utils.LogError(fmt.Sprintf("Failed to get agents: %v", err))
 		return err
 	}
-	go func() {
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-
-		// Create archive directory if it doesn't exist
-		archiveDir := filepath.Join(utils.AppConfiguration.DataDir, "archive")
-		if err := os.MkdirAll(archiveDir, 0755); err != nil {
-			utils.LogError(fmt.Sprintf("Failed to create archive directory: %v", err))
-			return
+	utils.LogDebug(fmt.Sprintf("Compress jobs started to run at %s for %d agents", time.Now().Format(time.RFC3339), len(agents)))
+	for _, agent := range agents {
+		currentAgent := agent
+		utils.LogDebug(fmt.Sprintf("Compress jobs started to run at %s for agent %s", time.Now().Format(time.RFC3339), currentAgent.AgentId))
+		utils.LogDebug(fmt.Sprintf("Agent: %+v", currentAgent))
+		interval, err := utils.ParseDuration(currentAgent.ArchiveInterval)
+		if err != nil {
+			utils.LogError(fmt.Sprintf("Failed to parse archive interval: %v", err))
+			return err
 		}
+		go func(agent utils.Agent, interval time.Duration) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
 
-		// Function to process files that need compression
-		processFiles := func() error {
-			// Get all files in the snapshot directory
-			snapshotDir := filepath.Join(utils.AppConfiguration.DataDir, "snapshot")
-			files, err := os.ReadDir(snapshotDir)
-			if err != nil {
-				return fmt.Errorf("failed to read snapshot directory: %v", err)
-			}
-
-			for _, file := range files {
-				if file.IsDir() {
-					continue
-				}
-
-				// Skip already compressed files, log files, and non-img files
-				if !strings.HasSuffix(file.Name(), ".img") ||
-					strings.HasSuffix(file.Name(), ".zst") {
-					continue
-				}
-
-				filePath := filepath.Join(snapshotDir, file.Name())
-				fileInfo, err := file.Info()
-				if err != nil {
-					utils.LogError(fmt.Sprintf("Failed to get file info for %s: %v", filePath, err))
-					continue
-				}
-
-				// Check if file is older than archive interval
-				if time.Since(fileInfo.ModTime()) > interval {
-					utils.LogDebug(fmt.Sprintf("Processing file for archival: %s", filePath))
-
-					// Create progress channel
-					progressChan := make(chan ProgressInfo)
-
-					// Start progress monitoring goroutine
-					actionId := strings.TrimSuffix(file.Name(), ".img")
-					archiveId := utils.AppConfiguration.DataDir + "/archive/" + file.Name() + ".zst"
-					go UpdateCompressProgress(progressChan, actionId, archiveId)
-
-					// Compress the file
-					if err := CompressFileWithProgress(filePath, progressChan); err != nil {
-						utils.LogError(fmt.Sprintf("Failed to compress %s: %v", filePath, err))
-						close(progressChan)
-						continue
-					}
-					close(progressChan)
-
-					// Move compressed file to archive directory
-					compressedPath := filePath + ".zst"
-					archivePath := filepath.Join(archiveDir, file.Name()+".zst")
-
-					if err := os.Rename(compressedPath, archivePath); err != nil {
-						utils.LogError(fmt.Sprintf("Failed to move compressed file to archive: %v", err))
-						continue
-					}
-
-					// Move corresponding log file if it exists
-					logPath := strings.TrimSuffix(filePath, ".img") + ".log"
-					archiveLogPath := filepath.Join(archiveDir, strings.TrimSuffix(file.Name(), ".img")+".log")
-
-					// Check if log file exists before trying to move it
-					if _, err := os.Stat(logPath); err == nil {
-						if err := os.Rename(logPath, archiveLogPath); err != nil {
-							utils.LogError(fmt.Sprintf("Failed to move log file to archive: %v", err))
-						}
-					} else {
-						utils.LogDebug(fmt.Sprintf("No log file found for %s", file.Name()))
-					}
-
-					// Remove original file after successful compression and move
-					if err := os.Remove(filePath); err != nil {
-						utils.LogError(fmt.Sprintf("Failed to remove original file: %v", err))
-					} else {
-						utils.LogDebug(fmt.Sprintf("Successfully compressed and archived %s", file.Name()))
-					}
-				}
-			}
-			return nil
-		}
-
-		// Run initial compression for all agents
-		if err := processFiles(); err != nil {
-			utils.LogError(fmt.Sprintf("Initial compression for all agents failed: %v", err))
-		}
-
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-
-		// Then run periodic compression
-		for {
-			select {
-			case <-ctx.Done():
-				utils.LogDebug("Compress jobs stopped")
+			// Create archive directory if it doesn't exist
+			archiveDir := filepath.Join(utils.AppConfiguration.DataDir, "archive")
+			if err := os.MkdirAll(archiveDir, 0755); err != nil {
+				utils.LogError(fmt.Sprintf("Failed to create archive directory: %v", err))
 				return
-			case <-ticker.C:
-				if err := processFiles(); err != nil {
-					utils.LogError(fmt.Sprintf("Periodic compression failed: %v", err))
+			}
+
+			// Run initial compression for this agent
+			if err := processFiles(agent.AgentId, interval, archiveDir); err != nil {
+				utils.LogError(fmt.Sprintf("Initial compression for agent %s failed: %v", agent.AgentId, err))
+			}
+
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
+
+			// Then run periodic compression
+			for {
+				select {
+				case <-ctx.Done():
+					utils.LogDebug("Compress jobs stopped")
+					return
+				case <-ticker.C:
+					if err := processFiles(agent.AgentId, interval, archiveDir); err != nil {
+						utils.LogError(fmt.Sprintf("Periodic compression for agent %s failed: %v", agent.AgentId, err))
+					}
 				}
 			}
-		}
-	}()
-
+		}(currentAgent, interval)
+	}
 	return nil
 }
 

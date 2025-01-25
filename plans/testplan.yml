@@ -1,11 +1,11 @@
 name: "production-backup-policy"
 description: "Backup policy for production servers"
-archive_interval: 24
-snapshot_frequency: 4
+archive_interval: 24h
+snapshot_frequency: "daily"
 snapshot_time: "00:00"
 bandwidth_limit: 50
 snapshot_retention: 7
-live_sync_frequency: 1
+live_sync_frequency: 1m
 transition_after_days: 30
 delete_after_days: 90
 

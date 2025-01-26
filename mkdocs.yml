@@ -50,5 +50,10 @@ markdown_extensions:
   - pymdownx.superfences
   - attr_list
 
+extra:
+  analytics:
+    provider: google
+    property: G-XRMVNLVYE1
+
 copyright: Copyright &copy; 2025 Xmigrate Inc.
 

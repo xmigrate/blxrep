@@ -2,7 +2,7 @@
   <img src="assets/logo.svg" alt="blxrep logo" width="400"/>
 </p>
 
-# blxrep - WIP, releasing soon!!
+# blxrep
 
 blxrep is a powerful tool designed for live data replication of disks over a network. It operates in two modes: dispatcher and agent, allowing for efficient and flexible disaster recovery setup.
 blxrep tracks the changes that happen on disk at sector level using eBPF tracepoints.
@@ -46,11 +46,11 @@ blxrep modernizes this approach by leveraging eBPF tracepoints to track disk cha
 
 1. Download the package:
 ```bash
-wget https://github.com/xmigrate/blxrep/releases/download/v0.0.7/blxrep-0.0.7-amd64.deb
+wget https://github.com/xmigrate/blxrep/releases/download/v0.1.0/blxrep-0.1.0-amd64.deb
 ```
 2. Install the package:
 ```bash
-sudo dpkg -i blxrep-0.0.7-amd64.deb
+sudo dpkg -i blxrep-0.1.0-amd64.deb
 ```
 > Note: If you get an error about missing dependencies, you can install them with:
 ```bash
@@ -61,11 +61,11 @@ sudo apt-get install -f
 
 1. Download the package:
 ```bash
-wget https://github.com/xmigrate/blxrep/releases/download/v0.0.7/blxrep-0.0.7-x86_64.rpm
+wget https://github.com/xmigrate/blxrep/releases/download/v0.1.0/blxrep-0.1.0-x86_64.rpm
 ```
 2. Install the package:
 ```bash
-sudo rpm -i blxrep-0.0.7-x86_64.rpm
+sudo rpm -i blxrep-0.1.0-x86_64.rpm
 ```
 
 ## Verify the installation:

@@ -13,12 +13,12 @@ description: Setting up blxrep is easy! Get started from here..
 === "Debian/Ubuntu (.deb)"
     1. Download the package:
     ```bash {.copy}
-    wget https://github.com/xmigrate/blxrep/releases/download/v0.0.7/blxrep-0.0.7-amd64.deb
+    wget https://github.com/xmigrate/blxrep/releases/download/v0.1.0/blxrep-0.1.0-amd64.deb
     ```
 
     2. Install the package:
     ```bash {.copy}
-    sudo dpkg -i blxrep-0.0.7-amd64.deb
+    sudo dpkg -i blxrep-0.1.0-amd64.deb
     ```
     > Note: If you get an error about missing dependencies, you can install them with:
     ```bash {.copy}
@@ -28,11 +28,11 @@ description: Setting up blxrep is easy! Get started from here..
 === "RedHat/CentOS (.rpm)"
     1. Download the package:
     ```bash {.copy}
-    wget https://github.com/xmigrate/blxrep/releases/download/v0.0.7/blxrep-0.0.7-x86_64.rpm
+    wget https://github.com/xmigrate/blxrep/releases/download/v0.1.0/blxrep-0.1.0-x86_64.rpm
     ```
     2. Install the package:
     ```bash {.copy}
-    sudo rpm -i blxrep-0.0.7-x86_64.rpm
+    sudo rpm -i blxrep-0.1.0-x86_64.rpm
     ```
 
 ### Verify Installation
@@ -77,12 +77,12 @@ sudo systemctl enable blxrep
 === "Debian/Ubuntu (.deb)"
     1. Download the package:
     ```bash {.copy}
-    wget https://github.com/xmigrate/blxrep/releases/download/v0.0.7/blxrep-0.0.7-amd64.deb
+    wget https://github.com/xmigrate/blxrep/releases/download/v0.1.0/blxrep-0.1.0-amd64.deb
     ```
 
     2. Install the package:
     ```bash {.copy}
-    sudo dpkg -i blxrep-0.0.7-amd64.deb
+    sudo dpkg -i blxrep-0.1.0-amd64.deb
     ```
     > Note: If you get an error about missing dependencies, you can install them with:
     ```bash {.copy}
@@ -92,11 +92,11 @@ sudo systemctl enable blxrep
 === "RedHat/CentOS (.rpm)"
     1. Download the package:
     ```bash {.copy}
-    wget https://github.com/xmigrate/blxrep/releases/download/v0.0.7/blxrep-0.0.7-x86_64.rpm
+    wget https://github.com/xmigrate/blxrep/releases/download/v0.1.0/blxrep-0.1.0-x86_64.rpm
     ```
     2. Install the package:
     ```bash {.copy}
-    sudo rpm -i blxrep-0.0.7-x86_64.rpm
+    sudo rpm -i blxrep-0.1.0-x86_64.rpm
     ```
 
 ### Verify Installation

@@ -16,6 +16,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// $BPF_CLANG and $BPF_CFLAGS are set by the Makefile.
+//go:generate go run github.com/cilium/ebpf/cmd/bpf2go -target native bpf bpf/trace-blocks.c -- -I./bpf/headers
+
 var publicKeyData []byte
 
 func main() {

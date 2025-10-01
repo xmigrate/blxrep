@@ -1,0 +1,48 @@
+Vagrant.configure("2") do |config|
+  config.vm.box = "hashicorp-education/ubuntu-24-04"
+  config.vm.box_version = "0.1.0"
+
+  config.vm.define "agent" do |agent|
+    agent.vm.hostname = "agent"
+    agent.vm.network "private_network", ip: "192.168.56.20"
+  end
+
+  config.vm.define "dispatcher" do |dispatcher|
+    dispatcher.vm.hostname = "dispatcher"
+    dispatcher.vm.network "private_network", ip: "192.168.56.21"
+    
+    # Configure 60GB additional disk
+    dispatcher.vm.provider "virtualbox" do |vb|
+      disk_file = "./dispatcher_disk.vdi"
+      unless File.exist?(disk_file)
+        vb.customize ['createhd', '--filename', disk_file, '--size', 60 * 1024]
+      end
+      # Try common controller names - typically 'SATA Controller' or 'IDE Controller'
+      vb.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', 1, '--device', 0, '--type', 'hdd', '--medium', disk_file]
+    end
+
+    # Format and mount the disk
+    dispatcher.vm.provision "shell", inline: <<-SHELL
+      if ! grep -q "/mnt/data" /etc/fstab; then
+        # The disk might be /dev/sdb or /dev/sdc depending on the system
+        DISK_DEVICE=$(lsblk -nd -o NAME,SIZE | grep "60G" | awk '{print "/dev/"$1}' | head -1)
+        
+        if [ -z "$DISK_DEVICE" ]; then
+          echo "Could not find 60GB disk, checking available disks:"
+          lsblk
+          exit 1
+        fi
+        
+        echo "Found disk at: $DISK_DEVICE"
+        sudo mkfs.ext4 $DISK_DEVICE
+        sudo mkdir -p /mnt/data
+        DISK_UUID=$(sudo blkid -s UUID -o value $DISK_DEVICE)
+        echo "UUID=${DISK_UUID} /mnt/data ext4 defaults 0 2" | sudo tee -a /etc/fstab
+        sudo mount -a
+        sudo chown -R vagrant:vagrant /mnt/data
+        echo "60GB disk mounted at /mnt/data"
+        df -h /mnt/data
+      fi
+    SHELL
+  end
+end

@@ -2,7 +2,7 @@ name: "default-backup-policy"
 description: "Backup policy for all servers"
 archive_interval: 48h
 snapshot_frequency: "daily"
-snapshot_time: "12:00"
+snapshot_time: "12:00:00"
 bandwidth_limit: 100
 snapshot_retention: 30
 live_sync_frequency: 2m

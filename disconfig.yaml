@@ -1,11 +1,9 @@
 mode: "dispatcher"
 data-dir: "/data"
+policy-dir: "/etc/blxrep/policies"
 targets: 
   - "AWSDemo"
-backend-url: "https://app.predator00758.com"
-backend-token: "gAAAAABnXAY8QkIodehFb2L5AeuQjkHtsC6V_RMvq92Vi6_szscXiIWtJ0GwBgy5sS8c6Tv3BsV2l89H2TNKGbc2BHyn5zReTota93VXEYLK7ikOtI_fSU2DaLSe5AyTZhXab0q__PBQ3TrpEwKt42RPfvAoiFSLWmVoOV-asIjEORuKBpdiQovFcDdNjTMw1c2hlXRVuDymrPqHDIXt_X1yJ0SjCnEs4AHn9xGkZG7JHKJtFR9TsTmLLh-kqkkG28o6GXRNVeTdWiCqNjOfgx3Y_Sai4ECwOAiWFA19HMBhe6lQIaWQ5gBEMNpd6gEHGJGUakmLPEIsf5F3T1A7UKbox8Iy1QqqAdMsI9-Vxxf6_Gqke2Usz1ui3A2oZ5J8cBa4BjwaszU8Oet_W_9Y3zLwaakZCshRzgJNWOp5FJWTwpOaW1cDoeQlfmFzQjp0NORHGZY9-6ceWiHep1UmdJkGPkejbEakD49916jkRXZaNaxxv9RL6743cKHrUQntz5D08lA3pnQ2u2Veu4dIZIwMStzhHoOcFQ=="
 # Add user configuration for registration
 name: "Vishnu ks"
 email: "ksvishnu56@gmail.com"
 organization: "appmend"
-license-file: "/data/xmigrate.license"

@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -166,12 +167,36 @@ func updateAgentConfig(agent *utils.Agent, policy utils.BackupPolicy, targetGrou
 	agent.DeleteAfterDays = policy.DeleteAfterDays
 	utils.AppConfiguration.ArchiveInterval = policy.ArchiveInterval
 	utils.LogDebug(fmt.Sprintf("Updated agent config: %+v", agent.AgentId))
+
+	// Log footprint disk information for debugging
+	log.Printf("🔍 AGENT %s - Processing disk selection", agent.AgentId)
+	log.Printf("   Footprint contains %d disks:", len(agent.Footprint.DiskDetails))
+	for i, disk := range agent.Footprint.DiskDetails {
+		log.Printf("   %d. %s - Size: %d, FS: %s, Mount: %s",
+			i+1, disk.Name, disk.Size, disk.FsType, disk.MountPoint)
+	}
+
+	log.Printf("   Policy excludes %d disks:", len(targetGroup.DisksExcluded))
+	for i, excludedDisk := range targetGroup.DisksExcluded {
+		log.Printf("   %d. %s", i+1, excludedDisk)
+	}
+
 	// Update disk configuration
+	originalDiskCount := len(agent.Disks)
 	for _, disk := range agent.Footprint.DiskDetails {
 		if !Contains(targetGroup.DisksExcluded, disk.Name) {
 			if !Contains(agent.Disks, disk.Name) {
 				agent.Disks = append(agent.Disks, disk.Name)
+				log.Printf("   ✅ ADDED disk: %s", disk.Name)
+			} else {
+				log.Printf("   ⏭️  SKIP disk (already exists): %s", disk.Name)
 			}
+		} else {
+			log.Printf("   ❌ EXCLUDED disk: %s", disk.Name)
 		}
 	}
+
+	log.Printf("   Final agent.Disks array: %v", agent.Disks)
+	log.Printf("   📊 Disk count: %d → %d (+%d added)",
+		originalDiskCount, len(agent.Disks), len(agent.Disks)-originalDiskCount)
 }

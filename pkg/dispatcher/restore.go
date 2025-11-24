@@ -17,8 +17,6 @@ import (
 
 	"github.com/xmigrate/blxrep/service"
 	"github.com/xmigrate/blxrep/utils"
-
-	"golang.org/x/sys/unix"
 )
 
 const chunkSize = 1 * 1024 * 1024 // 1MB chunks
@@ -189,18 +187,14 @@ func compressPath(sourcePath string, tarWriter *tar.Writer) error {
 }
 
 func getBlockDeviceSize(path string) (int64, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-
-	size, err := unix.IoctlGetInt(int(file.Fd()), unix.BLKGETSIZE64)
+	// Use the existing utils function which handles device size detection
+	totalSectors, err := utils.GetTotalSectors(path)
 	if err != nil {
 		return 0, err
 	}
 
-	return int64(size), nil
+	// Convert sectors back to bytes (assuming 512-byte sectors)
+	return int64(totalSectors * 512), nil
 }
 
 func RestorePartition(agentID string, sourcePath string, destPath string, blockSize int, channelSize int, ctx context.Context, restorePartition *sync.Mutex, isPartitionRestore *bool, action utils.Action) error {

@@ -27,6 +27,9 @@ import (
 const (
 	BlockSize       = 512 // Fixed block size
 	BlockHeaderSize = 8   // 8 bytes for block number
+
+	// BLOCK_DELTA is the number of blocks to expand on each side of a detected change
+	BLOCK_DELTA = 500 // 500 blocks before and after (1000 total expansion)
 )
 
 type BlockData struct {
@@ -304,6 +307,63 @@ func sortAndDeduplicate(pairs []utils.BlockPair) []utils.BlockPair {
 	return result
 }
 
+// expandSyncRange expands a sync range by BLOCK_DELTA blocks on each side
+// to capture related changes and address offset mapping issues.
+func expandSyncRange(startBlock, endBlock uint64, totalBlocks uint64) (uint64, uint64) {
+	// Expand by BLOCK_DELTA blocks on each side
+	expandedStart := startBlock
+	if startBlock <= BLOCK_DELTA {
+		expandedStart = 0 // Can't go below 0
+	} else {
+		expandedStart = startBlock - BLOCK_DELTA
+	}
+
+	expandedEnd := endBlock + BLOCK_DELTA
+	if expandedEnd >= totalBlocks {
+		expandedEnd = totalBlocks - 1 // Don't exceed total blocks (0-indexed)
+	}
+
+	return expandedStart, expandedEnd
+}
+
+// getDeviceSizeInBlocks gets the device size in 512-byte blocks
+func getDeviceSizeInBlocks(devicePath string) (uint64, error) {
+	// Use the existing utils function which handles device size detection
+	return utils.GetTotalSectors(devicePath)
+}
+
+// expandBlockPairs applies delta expansion to all block pairs
+func expandBlockPairs(pairs []utils.BlockPair, devicePath string) []utils.BlockPair {
+	if len(pairs) == 0 {
+		return pairs
+	}
+
+	// Get device total blocks for boundary checking
+	totalBlocks, err := getDeviceSizeInBlocks(devicePath)
+	if err != nil {
+		utils.LogError(fmt.Sprintf("Failed to get device size for %s: %v", devicePath, err))
+		// Use a very large default to prevent boundary issues
+		totalBlocks = 9223372036854775807 // Max uint64
+	}
+
+	expandedPairs := make([]utils.BlockPair, 0, len(pairs))
+
+	for _, pair := range pairs {
+		expandedStart, expandedEnd := expandSyncRange(pair.Start, pair.End, totalBlocks)
+
+		expandedPair := utils.BlockPair{
+			Start: expandedStart,
+			End:   expandedEnd,
+		}
+		expandedPairs = append(expandedPairs, expandedPair)
+
+		utils.LogDebug(fmt.Sprintf("Expanded range %d-%d to %d-%d (device: %s, total blocks: %d)",
+			pair.Start, pair.End, expandedStart, expandedEnd, devicePath, totalBlocks))
+	}
+
+	return expandedPairs
+}
+
 func SyncData(conn *websocket.Conn, agentID string, force bool) {
 	agent, err := service.GetAgent(agentID)
 	if err != nil {
@@ -325,8 +385,15 @@ func SyncData(conn *websocket.Conn, agentID string, force bool) {
 		return
 	}
 
+	utils.LogDebug(fmt.Sprintf("Found %d .cst files matching pattern %s", len(matches), pattern))
+	for _, m := range matches {
+		utils.LogDebug(fmt.Sprintf("  - %s", filepath.Base(m)))
+	}
+
 	// Compile regex to extract timestamp and srcPath
-	re := regexp.MustCompile(fmt.Sprintf(`^%s_(.+)_(\d{14})\.cst$`, agentID))
+	regexPattern := fmt.Sprintf(`^%s_(.+)_(\d{14})\.cst$`, agentID)
+	utils.LogDebug(fmt.Sprintf("Using regex pattern: %s", regexPattern))
+	re := regexp.MustCompile(regexPattern)
 
 	// Group files by srcPath
 	filesBySrcPath := make(map[string][]string)
@@ -345,13 +412,17 @@ func SyncData(conn *websocket.Conn, agentID string, force bool) {
 		if !force {
 			// Only check timestamp if not forced
 			timestampStr := match[2]
-			timestamp, err := time.Parse("20060102150405", timestampStr)
+			// Parse timestamp in local timezone to match time.Now() which returns local time
+			timestamp, err := time.ParseInLocation("20060102150405", timestampStr, time.Local)
 			if err != nil {
 				utils.LogError("Error parsing timestamp from filename " + filename + ": " + err.Error())
 				continue
 			}
 
-			if now.Sub(timestamp) <= age {
+			fileAge := now.Sub(timestamp)
+			utils.LogDebug(fmt.Sprintf("File %s: age=%v, required=%v, old enough=%v", filename, fileAge, age, fileAge > age))
+			if fileAge <= age {
+				utils.LogDebug(fmt.Sprintf("Skipping file %s: age %v is not greater than %v", filename, fileAge, age))
 				continue // Skip files that aren't old enough
 			}
 		}
@@ -410,6 +481,9 @@ func SyncData(conn *websocket.Conn, agentID string, force bool) {
 		if !force {
 			sectorPairs = sortAndDeduplicate(sectorPairs)
 		}
+
+		// Apply delta expansion to capture related changes and address offset mapping
+		sectorPairs = expandBlockPairs(sectorPairs, srcPath)
 
 		// Send sector pairs in chunks
 		const chunkSize = 40000
@@ -813,7 +887,8 @@ func TotalSyncData(conn *websocket.Conn, agentID string) {
 
 		srcPath := strings.ReplaceAll(match[1], "-", "/") // Convert back to original path
 		timestampStr := match[2]
-		timestamp, err := time.Parse("20060102150405", timestampStr)
+		// Parse timestamp in local timezone to match time.Now() which returns local time
+		timestamp, err := time.ParseInLocation("20060102150405", timestampStr, time.Local)
 		if err != nil {
 			utils.LogError("Error parsing timestamp from filename " + filename + ": " + err.Error())
 			continue
@@ -843,6 +918,9 @@ func TotalSyncData(conn *websocket.Conn, agentID string) {
 
 		// Sort and deduplicate sector pairs for this srcPath
 		sectorPairs = sortAndDeduplicate(sectorPairs)
+
+		// Apply delta expansion to capture related changes and address offset mapping
+		sectorPairs = expandBlockPairs(sectorPairs, srcPath)
 
 		const chunkSize = 40000
 		for i := 0; i < len(sectorPairs); i += chunkSize {

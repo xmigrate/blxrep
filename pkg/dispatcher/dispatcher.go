@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/gob"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -70,8 +71,8 @@ func Start(dataDir string, targets []string, policyDir string) {
 
 	// Start the HTTP server
 	go func() {
-		utils.LogDebug("Starting WebSocket server on :8080")
-		if err := http.ListenAndServe(":8080", nil); err != nil {
+		utils.LogDebug("Starting WebSocket server on :50051")
+		if err := http.ListenAndServe(":50051", nil); err != nil {
 			utils.LogError(fmt.Sprintf("WebSocket server error: %v", err))
 		}
 	}()
@@ -309,6 +310,59 @@ func handleConfigWebSocket(w http.ResponseWriter, r *http.Request) {
 		service.InsertOrUpdateAgent(agent)
 		return
 	}
+
+	// Log agent state and footprint information for debugging
+	log.Printf("🔍 CONFIG WS - Agent %s connecting", agentID)
+	log.Printf("   Connected: %v", agent.Connected)
+	log.Printf("   Prerequisites: %v", agent.Prerequisites)
+	log.Printf("   Footprint disks: %d", len(agent.Footprint.DiskDetails))
+	log.Printf("   Agent.Disks array: %v", agent.Disks)
+
+	if len(agent.Footprint.DiskDetails) > 0 {
+		log.Printf("   Footprint disk details:")
+		for i, disk := range agent.Footprint.DiskDetails {
+			log.Printf("   %d. %s - Size: %d, FS: %s, Mount: %s",
+				i+1, disk.Name, disk.Size, disk.FsType, disk.MountPoint)
+		}
+	} else {
+		log.Printf("   ⚠️  WARNING: No footprint disks found!")
+	}
+
+	// Check for immediate footprint message (sent via sendFootprintFirst)
+	conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	var bulkMessage utils.AgentBulkMessage
+	err = conn.ReadJSON(&bulkMessage)
+	if err == nil && bulkMessage.DataType == "footprint" {
+		log.Printf("📋 CONFIG WS - Received immediate footprint from agent %s", agentID)
+		agent.Footprint = bulkMessage.Footprint
+		service.InsertOrUpdateAgent(agent)
+
+		log.Printf("📋 CONFIG WS - Updated footprint, now has %d disks:", len(agent.Footprint.DiskDetails))
+		for i, disk := range agent.Footprint.DiskDetails {
+			log.Printf("   %d. %s - Size: %d, FS: %s, Mount: %s",
+				i+1, disk.Name, disk.Size, disk.FsType, disk.MountPoint)
+		}
+
+		// Process policies immediately to populate agent.Disks
+		log.Printf("⚙️  CONFIG WS - Processing policies immediately after footprint...")
+		if err := ConfigScheduler(utils.AppConfiguration.PolicyDir); err != nil {
+			log.Printf("❌ Failed to process policies immediately: %v", err)
+		}
+
+		// Reload agent to get updated disks array
+		updatedAgent, err := service.GetAgent(agentID)
+		if err != nil {
+			log.Printf("❌ Failed to reload agent after policy processing: %v", err)
+		} else {
+			agent = updatedAgent
+			log.Printf("✅ Agent disks after policy processing: %v", agent.Disks)
+		}
+	} else {
+		// Reset read deadline and continue
+		conn.SetReadDeadline(time.Time{})
+		log.Printf("ℹ️  CONFIG WS - No immediate footprint message from agent %s (err: %v)", agentID, err)
+	}
+
 	// TODO: Create agent channels for seperate disks as we get the agent config here
 	// Send initial configuration to agent
 	configMessage := utils.Message{
@@ -322,6 +376,11 @@ func handleConfigWebSocket(w http.ResponseWriter, r *http.Request) {
 			SnapshotTime:   agent.CloneSchedule.Time,
 			CDC:            true,
 		},
+	}
+
+	log.Printf("📤 CONFIG WS - Sending config to agent %s with %d disks:", agentID, len(configMessage.ConfigMessage.Disks))
+	for i, disk := range configMessage.ConfigMessage.Disks {
+		log.Printf("   %d. %s", i+1, disk)
 	}
 
 	if err := conn.WriteJSON(configMessage); err != nil {
@@ -447,26 +506,55 @@ func authenticateClient(conn *websocket.Conn) (string, error) {
 }
 
 func ShowCheckpoints(start string, end string, agent string, dataDir string, disk string) ([]utils.Checkpoint, error) {
-	files, err := os.ReadDir(filepath.Join(dataDir, "incremental"))
-	if err != nil {
-		return nil, fmt.Errorf("error reading directory: %w", err)
-	}
-
 	var checkpoints []utils.Checkpoint
 	safeDisk := strings.ReplaceAll(disk, "/", "-")
 	prefix := fmt.Sprintf("%s_%s", agent, safeDisk)
 	utils.LogDebug(fmt.Sprintf("Debug: agent=%s, disk=%s, safeDisk=%s, prefix=%s dataDir=%s\n", agent, disk, safeDisk, prefix, dataDir))
-	for _, file := range files {
-		if strings.HasPrefix(file.Name(), prefix+"_") && strings.HasSuffix(file.Name(), ".bak") {
-			ts, err := time.Parse("200601021504", strings.TrimSuffix(strings.TrimPrefix(file.Name(), prefix+"_"), ".bak"))
-			if err != nil {
-				utils.LogError(fmt.Sprintf("Error parsing timestamp for file %s: %v\n", file.Name(), err))
-				continue
+
+	// Check incremental directory for .bak files
+	incrementalFiles, err := os.ReadDir(filepath.Join(dataDir, "incremental"))
+	if err != nil {
+		utils.LogError(fmt.Sprintf("Error reading incremental directory: %v", err))
+	} else {
+		for _, file := range incrementalFiles {
+			if strings.HasPrefix(file.Name(), prefix+"_") && strings.HasSuffix(file.Name(), ".bak") {
+				ts, err := time.Parse("200601021504", strings.TrimSuffix(strings.TrimPrefix(file.Name(), prefix+"_"), ".bak"))
+				if err != nil {
+					utils.LogError(fmt.Sprintf("Error parsing timestamp for file %s: %v\n", file.Name(), err))
+					continue
+				}
+				checkpoints = append(checkpoints, utils.Checkpoint{
+					Timestamp: ts,
+					Filename:  file.Name(),
+				})
 			}
-			checkpoints = append(checkpoints, utils.Checkpoint{
-				Timestamp: ts,
-				Filename:  file.Name(),
-			})
+		}
+	}
+
+	// Also check snapshot directory for .img files
+	snapshotFiles, err := os.ReadDir(filepath.Join(dataDir, "snapshot"))
+	if err != nil {
+		utils.LogError(fmt.Sprintf("Error reading snapshot directory: %v", err))
+	} else {
+		for _, file := range snapshotFiles {
+			if strings.HasPrefix(file.Name(), prefix+"_") && strings.HasSuffix(file.Name(), ".img") {
+				// Extract timestamp from filename: agent_disk_YYYYMMDDHHMM.img
+				filenameWithoutExt := strings.TrimSuffix(file.Name(), ".img")
+				parts := strings.Split(filenameWithoutExt, "_")
+				if len(parts) >= 3 {
+					// Last part should be the timestamp
+					timestampStr := parts[len(parts)-1]
+					ts, err := time.Parse("200601021504", timestampStr)
+					if err != nil {
+						utils.LogError(fmt.Sprintf("Error parsing timestamp from snapshot file %s: %v\n", file.Name(), err))
+						continue
+					}
+					checkpoints = append(checkpoints, utils.Checkpoint{
+						Timestamp: ts,
+						Filename:  file.Name(),
+					})
+				}
+			}
 		}
 	}
 
@@ -546,8 +634,8 @@ func CheckpointMergeFromSnapshot(snapshotPath string, snapshotId string) (string
 	if _, err := os.Stat(filepath.Join(utils.AppConfiguration.DataDir, "final")); os.IsNotExist(err) {
 		os.MkdirAll(filepath.Join(utils.AppConfiguration.DataDir, "final"), 0755)
 	}
-	// Create the final snapshot path
-	finalSnapshot := filepath.Join(utils.AppConfiguration.DataDir, "final", fmt.Sprintf("%s-%s%s.img", parts[0], snapshotId, strings.ReplaceAll(parts[1], "-", "_")))
+	// Create the final snapshot path (format: agent_disk-timestamp.img to match .bak checkpoint format)
+	finalSnapshot := filepath.Join(utils.AppConfiguration.DataDir, "final", fmt.Sprintf("%s-%s.img", agent, snapshotId))
 
 	// Copy the snapshot to the final location
 	err = utils.CopyFile(snapshotPath, finalSnapshot)
@@ -569,19 +657,44 @@ func CheckpointMerge(checkpoint, dataDir string, agent string, disk string) (str
 	if _, err := os.Stat(filepath.Join(utils.AppConfiguration.DataDir, "final")); os.IsNotExist(err) {
 		os.MkdirAll(filepath.Join(utils.AppConfiguration.DataDir, "final"), 0755)
 	}
+
+	safeDisk := strings.ReplaceAll(disk, "/", "-")
+
+	// Check if it's a snapshot file (.img) or backup file (.bak)
+	if strings.HasSuffix(checkpoint, ".img") {
+		// It's a snapshot file - extract timestamp and use CheckpointMergeFromSnapshot
+		// Filename format: agent_disk_YYYYMMDDHHMM.img
+		parts := strings.Split(strings.TrimSuffix(checkpoint, ".img"), "_")
+		if len(parts) < 3 {
+			return "", fmt.Errorf("invalid snapshot filename format: %s", checkpoint)
+		}
+		timestampStr := parts[len(parts)-1]
+		if len(timestampStr) != 12 {
+			return "", fmt.Errorf("invalid timestamp format in snapshot filename: %s", checkpoint)
+		}
+
+		snapshotPath := filepath.Join(dataDir, "snapshot", checkpoint)
+		if _, err := os.Stat(snapshotPath); os.IsNotExist(err) {
+			return "", fmt.Errorf("snapshot file not found: %s", snapshotPath)
+		}
+
+		utils.LogDebug(fmt.Sprintf("Processing snapshot checkpoint %s for agent %s", checkpoint, agent))
+		return CheckpointMergeFromSnapshot(snapshotPath, timestampStr)
+	}
+
+	// It's a .bak file - use the original logic
 	pattern := `(\d{12})\.bak$`
 	re := regexp.MustCompile(pattern)
 	match := re.FindStringSubmatch(checkpoint)
 	if len(match) < 2 {
 		return "", fmt.Errorf("no timestamp found in the filename")
 	}
-	checkpoint = match[1]
-	safeDisk := strings.ReplaceAll(disk, "/", "-")
-	agent = fmt.Sprintf("%s_%s", agent, safeDisk)
+	checkpointTimestamp := match[1]
+	agentWithDisk := fmt.Sprintf("%s_%s", agent, safeDisk)
 
 	utils.LogDebug(fmt.Sprintf("Mounting checkpoint %s for agent %s", checkpoint, agent))
-	processAndCheckCompletion(agent, checkpoint, dataDir)
-	finalSnapshot := filepath.Join(dataDir, "final", fmt.Sprintf("%s-%s.img", agent, checkpoint))
+	processAndCheckCompletion(agentWithDisk, checkpointTimestamp, dataDir)
+	finalSnapshot := filepath.Join(dataDir, "final", fmt.Sprintf("%s-%s.img", agentWithDisk, checkpointTimestamp))
 
 	return finalSnapshot, nil
 }

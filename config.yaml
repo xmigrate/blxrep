@@ -1,6 +1,6 @@
 mode: "agent"
-id: "ip-172-31-46-49"
-dispatcher-addr: "3.110.56.28:8080"
+id: "default"
+dispatcher-addr: "192.168.5.2:50051"
 
 name: "vishnu ks"
 email: "vishnu@xmigrate.cloud"

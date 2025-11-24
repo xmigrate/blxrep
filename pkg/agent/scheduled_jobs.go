@@ -111,11 +111,12 @@ func (s *Scheduler) calculateNextRun() time.Time {
 }
 
 func StartScheduledJobs(agentID string, snapshotURL string) error {
-	scheduler, err := NewScheduler(utils.AgentConfiguration.SnapshotTime, utils.Frequency(utils.AgentConfiguration.SnapshotFreq))
+	config := utils.GetAgentConfiguration()
+	scheduler, err := NewScheduler(config.SnapshotTime, utils.Frequency(config.SnapshotFreq))
 	if err != nil {
 		return fmt.Errorf("failed to create scheduler: %v", err)
 	}
-	log.Printf("Scheduled job started to run at %s every %s", utils.AgentConfiguration.SnapshotTime, utils.AgentConfiguration.SnapshotFreq)
+	log.Printf("Scheduled job started to run at %s every %s", config.SnapshotTime, config.SnapshotFreq)
 	// Start as a goroutine
 	go func() {
 		if err := scheduler.Start(func() {

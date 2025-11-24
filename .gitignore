@@ -26,3 +26,5 @@ go.work.sum
 .cache
 *.vdi
 .vagrant
+
+poc/*
